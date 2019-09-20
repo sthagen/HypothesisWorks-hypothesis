@@ -305,6 +305,12 @@ else:
         ForwardRef = typing.ForwardRef  # type: ignore
     except AttributeError:
         typing_root_type = (typing.TypingMeta, typing.TypeVar)  # type: ignore
+        try:
+            typing_root_type += (typing._Union,)  # type: ignore
+        except AttributeError:
+            # Under Python 3.5.0, we'll just give up... if users want strategies
+            # inferred from Union-typed attrs attributes they can try a newer Python.
+            pass
         ForwardRef = typing._ForwardRef  # type: ignore
 
 

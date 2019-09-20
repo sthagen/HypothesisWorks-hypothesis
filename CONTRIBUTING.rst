@@ -227,6 +227,7 @@ their individual contributions.
 * `JP Viljoen <https://github.com/froztbyte>`_ (froztbyte@froztbyte.net)
 * `Jochen Müller <https://github.com/jomuel>`_
 * `Joey Tuong <https://github.com/tetrapus>`_
+* `Jonathan Gayvallet <https://github.com/Meallia>`_ (jonathan.gayvallet@orange.com)
 * `Jonty Wareing <https://www.github.com/Jonty>`_ (jonty@jonty.co.uk)
 * `Joshua Boone <https://www.github.com/patchedwork>`_ (joshuaboone4190@gmail.com)
 * `jmhsi <https://www.github.com/jmhsi>`_
@@ -269,7 +270,9 @@ their individual contributions.
 * `Sushobhit <https://github.com/sushobhit27>`_ (sushobhitsolanki@gmail.com)
 * `Tariq Khokhar <https://www.github.com/tkb>`_ (tariq@khokhar.net)
 * `Tessa Bradbury <https://www.github.com/tessereth>`_
+* `Thomas Grainge <https://www.github.com/tgrainge>`_
 * `Tim Martin <https://www.github.com/timmartin>`_ (tim@asymptotic.co.uk)
+* `Thomas Kluyver <https://www.github.com/takluyver>`_ (thomas@kluyver.me.uk)
 * `Tom McDermott <https://www.github.com/sponster-au>`_ (sponster@gmail.com)
 * `Tyler Gibbons <https://www.github.com/kavec>`_ (tyler.gibbons@flexport.com)
 * `Tyler Nickerson <https://www.github.com/nmbrgts>`_

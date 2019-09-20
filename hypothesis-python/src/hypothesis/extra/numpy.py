@@ -26,7 +26,7 @@ import hypothesis.internal.conjecture.utils as cu
 from hypothesis import Verbosity
 from hypothesis._settings import note_deprecation
 from hypothesis.errors import InvalidArgument
-from hypothesis.internal.compat import hrange, integer_types
+from hypothesis.internal.compat import PY2, hrange, integer_types
 from hypothesis.internal.coverage import check_function
 from hypothesis.internal.reflection import proxies
 from hypothesis.internal.validation import check_type, check_valid_interval
@@ -587,20 +587,60 @@ def timedelta64_dtypes(max_period="Y", min_period="ns", endianness="?"):
 
 
 @defines_dtype_strategy
-def byte_string_dtypes(endianness="?", min_len=0, max_len=16):
+def byte_string_dtypes(endianness="?", min_len=1, max_len=16):
     # type: (str, int, int) -> st.SearchStrategy[np.dtype]
     """Return a strategy for generating bytestring dtypes, of various lengths
-    and byteorder."""
-    order_check("len", 0, min_len, max_len)
+    and byteorder.
+
+    While Hypothesis' string strategies can generate empty strings, string
+    dtypes with length 0 indicate that size is still to be determined, so
+    the minimum length for string dtypes is 1.
+    """
+    if min_len == 0:
+        note_deprecation(
+            "generating byte string dtypes for unspecified length ('S0') "
+            "is deprecated. min_len will be 1 instead.",
+            since="2019-09-09",
+        )
+        min_len = 1
+    if max_len == 0:
+        note_deprecation(
+            "generating byte string dtypes for unspecified length ('S0') "
+            "is deprecated. max_len will be 1 instead.",
+            since="2019-09-09",
+        )
+        max_len = 1
+
+    order_check("len", 1, min_len, max_len)
     return dtype_factory("S", list(range(min_len, max_len + 1)), None, endianness)
 
 
 @defines_dtype_strategy
-def unicode_string_dtypes(endianness="?", min_len=0, max_len=16):
+def unicode_string_dtypes(endianness="?", min_len=1, max_len=16):
     # type: (str, int, int) -> st.SearchStrategy[np.dtype]
     """Return a strategy for generating unicode string dtypes, of various
-    lengths and byteorder."""
-    order_check("len", 0, min_len, max_len)
+    lengths and byteorder.
+
+    While Hypothesis' string strategies can generate empty strings, string
+    dtypes with length 0 indicate that size is still to be determined, so
+    the minimum length for string dtypes is 1.
+    """
+    if min_len == 0:
+        note_deprecation(
+            "generating unicode string dtypes for unspecified length ('U0') "
+            "is deprecated. min_len will be 1 instead.",
+            since="2019-09-09",
+        )
+        min_len = 1
+    if max_len == 0:
+        note_deprecation(
+            "generating unicode string dtypes for unspecified length ('U0') "
+            "is deprecated. max_len will be 1 instead.",
+            since="2019-09-09",
+        )
+        max_len = 1
+
+    order_check("len", 1, min_len, max_len)
     return dtype_factory("U", list(range(min_len, max_len + 1)), None, endianness)
 
 
@@ -615,11 +655,15 @@ def array_dtypes(
     """Return a strategy for generating array (compound) dtypes, with members
     drawn from the given subtype strategy."""
     order_check("size", 0, min_size, max_size)
-    native_strings = st.from_type(str).filter(bool)  # See issue #1798 re: filter!
-    elements = st.tuples(native_strings, subtype_strategy)
+    # Field names must be native strings and the empty string is weird; see #1963.
+    if PY2:
+        field_names = st.binary(min_size=1)
+    else:
+        field_names = st.text(min_size=1)
+    elements = st.tuples(field_names, subtype_strategy)
     if allow_subarrays:
         elements |= st.tuples(
-            native_strings, subtype_strategy, array_shapes(max_dims=2, max_side=2)
+            field_names, subtype_strategy, array_shapes(max_dims=2, max_side=2)
         )
     return st.lists(
         elements=elements,
