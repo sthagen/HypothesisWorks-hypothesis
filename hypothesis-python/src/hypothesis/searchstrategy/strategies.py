@@ -51,7 +51,7 @@ from hypothesis.internal.validation import check_type
 from hypothesis.utils.conventions import UniqueIdentifier
 
 try:
-    from typing import List, Callable, TypeVar, Generic, Optional  # noqa
+    from typing import Any, List, Callable, TypeVar, Generic, Optional  # noqa
 
     Ex = TypeVar("Ex", covariant=True)
     T = TypeVar("T")
@@ -102,7 +102,7 @@ class SearchStrategy(Generic[Ex]):
 
         The problem is that for properties that depend on each other, a naive
         calculation strategy may hit infinite recursion. Consider for example
-        the property is_empty. A strategy defined as x = st.deferred(lambda x)
+        the property is_empty. A strategy defined as x = st.deferred(lambda: x)
         is certainly empty (in order to draw a value from x we would have to
         draw a value from x, for which we would have to draw a value from x,
         ...), but in order to calculate it the naive approach would end up
@@ -348,7 +348,7 @@ class SearchStrategy(Generic[Ex]):
         return FlatMapStrategy(expand=expand, strategy=self)
 
     def filter(self, condition):
-        # type: (Callable[[Ex], bool]) -> SearchStrategy[Ex]
+        # type: (Callable[[Ex], Any]) -> SearchStrategy[Ex]
         """Returns a new strategy that generates values from this strategy
         which satisfy the provided condition. Note that if the condition is too
         hard to satisfy this might result in your tests failing with

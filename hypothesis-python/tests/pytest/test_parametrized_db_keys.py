@@ -17,5 +17,28 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version_info__ = (4, 40, 1)
-__version__ = ".".join(map(str, __version_info__))
+DB_KEY_TESTCASE = """
+from hypothesis import settings, given
+from hypothesis.database import InMemoryExampleDatabase
+from hypothesis.strategies import booleans
+import pytest
+
+DB = InMemoryExampleDatabase()
+
+
+@settings(database=DB)
+@given(booleans())
+@pytest.mark.parametrize("hi", (1, 2, 3))
+@pytest.mark.xfail()
+def test_dummy_for_parametrized_db_keys(hi, i):
+    assert Fail  # Test *must* fail for it to end up the database anyway
+
+
+def test_DB_keys_for_parametrized_test():
+    assert len(DB.data) == 3
+"""
+
+
+def test_db_keys_for_parametrized_tests_are_unique(testdir):
+    script = testdir.makepyfile(DB_KEY_TESTCASE)
+    testdir.runpytest(script).assert_outcomes(xfailed=3, passed=1)

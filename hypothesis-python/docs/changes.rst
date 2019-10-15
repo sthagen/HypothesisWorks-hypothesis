@@ -21,6 +21,67 @@ Hypothesis APIs come in three flavours:
 You should generally assume that an API is internal unless you have specific
 information to the contrary.
 
+.. _v4.40.1:
+
+-------------------
+4.40.1 - 2019-10-14
+-------------------
+
+This release changes how Hypothesis checks if a parameter to a test function is a mock object.
+It is unlikely to have any noticeable effect, but may result in a small performance improvement,
+especially for test functions where a mock object is being passed as the first argument.
+
+.. _v4.40.0:
+
+-------------------
+4.40.0 - 2019-10-09
+-------------------
+
+This release fixes a bug where our example database logic did not distinguish
+between failing examples based on arguments from a ``@pytest.mark.parametrize(...)``.
+This could in theory cause data loss if a common failure overwrote a rare one, and
+in practice caused occasional file-access collisions in highly concurrent workloads
+(e.g. during a 300-way parametrize on 16 cores).
+
+For internal reasons this also involves bumping the minimum supported version of
+:pypi:`pytest` to 4.3
+
+Thanks to Peter C Kroon for the Hacktoberfest patch!
+
+.. _v4.39.3:
+
+-------------------
+4.39.3 - 2019-10-09
+-------------------
+
+This patch improves our type hints on the :func:`~hypothesis.strategies.emails`,
+:func:`~hypothesis.strategies.functions`, :func:`~hypothesis.strategies.integers`,
+:func:`~hypothesis.strategies.iterables`, and :func:`~hypothesis.strategies.slices`
+strategies, as well as the ``.filter()`` method.
+
+There is no runtime change, but if you use :pypi:`mypy` or a similar
+type-checker on your tests the results will be a bit more precise.
+
+.. _v4.39.2:
+
+-------------------
+4.39.2 - 2019-10-09
+-------------------
+
+This patch improves the performance of unique collections such as
+:func:`~hypothesis.strategies.sets` of :func:`~hypothesis.strategies.just`
+or :func:`~hypothesis.strategies.booleans` strategies.  They were already
+pretty good though, so you're unlikely to notice much!
+
+.. _v4.39.1:
+
+-------------------
+4.39.1 - 2019-10-09
+-------------------
+
+If a value in a dict passed to :func:`~hypothesis.strategies.fixed_dictionaries`
+is not a strategy, Hypothesis now tells you which one.
+
 .. _v4.39.0:
 
 -------------------
@@ -3007,6 +3068,7 @@ For example, consider the following test:
     import hypothesis.strategies as st
     from hypothesis import given
 
+
     @given(st.text(), st.text())
     def test_non_equal(x, y):
         assert x != y
@@ -3045,6 +3107,7 @@ For example, consider the following test:
 
     import hypothesis.strategies as st
     from hypothesis import given
+
 
     @given(st.integers(), st.integers())
     def test_does_not_exceed_100(m, n):
