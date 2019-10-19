@@ -25,13 +25,13 @@ import ast
 import hashlib
 import inspect
 import re
-import tokenize
 import types
 from functools import wraps
 from types import ModuleType
 
 from hypothesis.internal.compat import (
     ARG_NAME_ATTRIBUTE,
+    PY2,
     getfullargspec,
     hrange,
     isidentifier,
@@ -42,6 +42,16 @@ from hypothesis.internal.compat import (
     update_code_location,
 )
 from hypothesis.vendor.pretty import pretty
+
+try:
+    from tokenize import detect_encoding
+except ImportError:  # pragma: no cover
+    detect_encoding = None
+
+if False:
+    from typing import TypeVar  # noqa
+
+    C = TypeVar("C", bound=callable)
 
 
 def fully_qualified_name(f):
@@ -72,7 +82,7 @@ def function_digest(function):
 
     No guarantee of uniqueness though it usually will be.
     """
-    hasher = hashlib.md5()
+    hasher = hashlib.sha384()
     try:
         hasher.update(to_unicode(inspect.getsource(function)).encode("utf-8"))
     # Different errors on different versions of python. What fun.
@@ -370,16 +380,16 @@ def extract_lambda_source(f):
     # in Python 3.2 or later.  But that's okay, because the only version that
     # affects for us is Python 2.7, and 2.7 doesn't support non-ASCII identifiers:
     # https://www.python.org/dev/peps/pep-3131/. In this case we'll get an
-    # AttributeError.
+    # TypeError again because we set detect_encoding to None above.
     #
     try:
         with open(inspect.getsourcefile(f), "rb") as src_f:
-            encoding, _ = tokenize.detect_encoding(src_f.readline)
+            encoding, _ = detect_encoding(src_f.readline)
 
         source_bytes = source.encode(encoding)
         source_bytes = source_bytes[lambda_ast.col_offset :].strip()
         source = source_bytes.decode(encoding)
-    except (AttributeError, OSError, TypeError):
+    except (OSError, TypeError):
         source = source[lambda_ast.col_offset :].strip()
 
     # This ValueError can be thrown in Python 3 if:
@@ -480,7 +490,7 @@ def source_exec_as_module(source):
 
     result = ModuleType(
         "hypothesis_temporary_module_%s"
-        % (hashlib.sha1(str_to_bytes(source)).hexdigest(),)
+        % (hashlib.sha384(str_to_bytes(source)).hexdigest(),)
     )
     assert isinstance(source, str)
     exec(source, result.__dict__)
@@ -616,3 +626,38 @@ def proxies(target):
         )
 
     return accept
+
+
+def reserved_means_kwonly_star(func):
+    # type: (C) -> C
+    """A decorator to implement Python-2-compatible kwonly args.
+
+    The following functions behave identically:
+        def f(a, __reserved=not_set, b=None): ...
+        def f(a, *, b=None): ...
+
+    Obviously this doesn't allow required kwonly args, but it's a nice way
+    of defining forward-compatible APIs given our plans to turn all args
+    with default values into kwonly args.
+    """
+    if PY2:
+        return func
+
+    signature = inspect.signature(func)
+    seen = False
+    parameters = []
+    for param in signature.parameters.values():
+        assert param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+        if param.name == "__reserved":
+            seen = True
+        elif not seen:
+            parameters.append(param)
+        else:
+            parameters.append(param.replace(kind=inspect.Parameter.KEYWORD_ONLY))
+    assert seen, "function does not have `__reserved` argument"
+
+    func.__signature__ = signature.replace(parameters=parameters)
+    newsig = define_function_signature(
+        func.__name__, func.__doc__, getfullargspec(func)
+    )
+    return impersonate(func)(wraps(func)(newsig(func)))

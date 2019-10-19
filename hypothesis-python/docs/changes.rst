@@ -21,6 +21,45 @@ Hypothesis APIs come in three flavours:
 You should generally assume that an API is internal unless you have specific
 information to the contrary.
 
+.. _v4.41.2:
+
+-------------------
+4.41.2 - 2019-10-17
+-------------------
+
+This patch changes some internal hashes to SHA384, to better support
+users subject to FIPS-140. There is no user-visible API change.
+
+Thanks to Paul Kehrer for this contribution!
+
+.. _v4.41.1:
+
+-------------------
+4.41.1 - 2019-10-16
+-------------------
+
+This release makes ``--hypothesis-show-statistics`` much more useful for
+tests using a :class:`~hypothesis.stateful.RuleBasedStateMachine`, by
+simplifying the reprs so that events are aggregated correctly.
+
+.. _v4.41.0:
+
+-------------------
+4.41.0 - 2019-10-16
+-------------------
+
+This release upgrades the :func:`~hypothesis.strategies.fixed_dictionaries`
+strategy to support ``optional`` keys (:issue:`1913`).
+
+.. _v4.40.2:
+
+-------------------
+4.40.2 - 2019-10-16
+-------------------
+
+This release makes some minor internal changes in support of improving the
+Hypothesis test suite. It should not have any user visible impact.
+
 .. _v4.40.1:
 
 -------------------
