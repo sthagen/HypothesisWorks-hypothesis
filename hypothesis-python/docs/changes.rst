@@ -21,6 +21,60 @@ Hypothesis APIs come in three flavours:
 You should generally assume that an API is internal unless you have specific
 information to the contrary.
 
+.. _v4.42.3:
+
+-------------------
+4.42.3 - 2019-10-30
+-------------------
+
+This release updates Hypothesis's formatting to the new version of black, and
+has absolutely no user visible effect.
+
+.. _v4.42.2:
+
+-------------------
+4.42.2 - 2019-10-30
+-------------------
+
+This release fixes a bug in :func:`~hypothesis.strategies.recursive` which would
+have meant that in practice ``max_leaves`` was treated as if it was lower than
+it actually is - specifically it would be capped at the largest power of two
+smaller than it. It is now handled correctly.
+
+.. _v4.42.1:
+
+-------------------
+4.42.1 - 2019-10-30
+-------------------
+
+Python 3.8's new :class:`python:typing.SupportsIndex` type - see :pep:`357`
+for details - is now  supported in :func:`~hypothesis.strategies.from_type`.
+
+Thanks to Grigorios Giannakopoulos for the patch!
+
+.. _v4.42.0:
+
+-------------------
+4.42.0 - 2019-10-27
+-------------------
+
+This release significantly simplifies Hypothesis's internal logic for data
+generation, by removing a number of heuristics of questionable or unproven
+value.
+
+The results of this change will vary significantly from test to test. Most
+test suites will see significantly faster data generation and lower memory
+usage. The "quality" of the generated data may go up or down depending on your
+particular test suites.
+
+If you see any significant regressions in Hypothesis's ability to find bugs in
+your code as a result of this release, please file an issue to let us know.
+
+Users of the new  :ref:`targeted property-based testing <targeted-search>`
+functionality are reasonably likely to see *improvements* in data generation,
+as this release changes the search algorithm for targeted property based
+testing to one that is more likely to be productive than the existing approach.
+
 .. _v4.41.3:
 
 -------------------

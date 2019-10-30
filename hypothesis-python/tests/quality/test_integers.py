@@ -46,10 +46,11 @@ def problems(draw):
             d = ConjectureData.for_buffer(buf)
             k = d.draw(st.integers())
             stop = d.draw_bits(8)
-            if stop > 0 and k > 0:
-                return (draw(st.integers(0, k - 1)), hbytes(d.buffer))
         except (StopTest, IndexError):
             pass
+        else:
+            if stop > 0 and k > 0:
+                return (draw(st.integers(0, k - 1)), hbytes(d.buffer))
 
 
 @example((2, b"\x00\x00\n\x01"))
@@ -97,7 +98,7 @@ def test_always_reduces_integers_to_smallest_suitable_sizes(problem):
 
     assert runner.interesting_examples
 
-    v, = runner.interesting_examples.values()
+    (v,) = runner.interesting_examples.values()
 
     shrinker = runner.new_shrinker(v, lambda x: x.status == Status.INTERESTING)
 
