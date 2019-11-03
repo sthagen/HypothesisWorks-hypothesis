@@ -21,6 +21,39 @@ Hypothesis APIs come in three flavours:
 You should generally assume that an API is internal unless you have specific
 information to the contrary.
 
+.. _v4.42.10:
+
+--------------------
+4.42.10 - 2019-11-03
+--------------------
+
+This release fixes :func:`~hypothesis.strategies.from_type` when used with
+bounded or constrained :obj:`python:typing.TypeVar` objects (:issue:`2094`).
+
+Previously, distinct typevars with the same constraints would be treated as all
+single typevar, and in cases where a typevar bound was resolved to a union of
+subclasses this could result in mixed types being generated for that typevar.
+
+.. _v4.42.9:
+
+-------------------
+4.42.9 - 2019-11-03
+-------------------
+
+This patch ensures that the default value :func:`~hypothesis.extra.numpy.broadcastable_shapes`
+chooses for ``max_dims`` is always valid (at most 32), even if you pass ``min_dims=32``.
+
+.. _v4.42.8:
+
+-------------------
+4.42.8 - 2019-11-02
+-------------------
+
+This patch ensures that we only add profile information to the pytest header
+if running either pytest or Hypothesis in verbose mode, matching the
+`builtin cache plugin <https://docs.pytest.org/en/latest/cache.html>`__
+(:issue:`2155`).
+
 .. _v4.42.7:
 
 -------------------
