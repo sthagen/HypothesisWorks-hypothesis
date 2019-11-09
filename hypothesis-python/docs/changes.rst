@@ -21,6 +21,41 @@ Hypothesis APIs come in three flavours:
 You should generally assume that an API is internal unless you have specific
 information to the contrary.
 
+.. _v4.43.8:
+
+-------------------
+4.43.8 - 2019-11-08
+-------------------
+
+This release ensures that the strategies passed to
+:func:`@given <hypothesis.given>` are properly validated when applied to a test
+method inside a test class.
+
+This should result in clearer error messages when some of those strategies are
+invalid.
+
+.. _v4.43.7:
+
+-------------------
+4.43.7 - 2019-11-08
+-------------------
+
+This release changes how Hypothesis manages its search space in cases where it
+generates redundant data. This should cause it to generate significantly fewer
+duplicated examples (especially with short integer ranges), and may cause it to
+produce more useful examples in some cases (especially ones where there is a
+significant amount of filtering).
+
+.. _v4.43.6:
+
+-------------------
+4.43.6 - 2019-11-07
+-------------------
+
+This patch refactors ``width`` handling in :func:`~hypothesis.strategies.floats`;
+you may notice small performance improvements but the main purpose is to
+enable work on :issue:`1704` (improving shrinking of bounded floats).
+
 .. _v4.43.5:
 
 -------------------
