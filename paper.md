@@ -31,7 +31,7 @@ affiliations:
 *Property-based testing* is a style of testing popularised by the QuickCheck family of libraries,
 first in Haskell [@DBLP:conf/icfp/ClaessenH00] and later in Erlang [@DBLP:conf/erlang/ArtsHJW06],
 which integrates generated test cases into existing software testing workflows:
-Instead of tests which provide examples of a single concrete behaviour,
+Instead of tests that provide examples of a single concrete behaviour,
 tests specify properties that hold for a wide range of inputs,
 which the testing library then attempts to generate test cases to refute.
 For a general introduction to property-based testing, see [@PraiseOfPBT].
@@ -49,7 +49,7 @@ Any researcher who tests their software in Python can benefit from these facilit
 but it is particularly useful for improving the correctness foundational libraries on which the scientific software ecosystem is built.
 For example, it has found bugs in astropy [@astropy:2018]^[e.g. https://github.com/astropy/astropy/pull/9328, https://github.com/astropy/astropy/pull/9532] and numpy [@DBLP:journals/cse/WaltCV11]^[e.g. https://github.com/numpy/numpy/issues/10930, https://github.com/numpy/numpy/issues/13089, https://github.com/numpy/numpy/issues/14239].
 
-Additionally, Hypothesis is easily extensible, and has a number of user-provided exceptions for specific research applications.
+Additionally, Hypothesis is easily extensible, and has a number of third-party extensions for specific research applications.
 For example, hypothesis-networkx^[https://pypi.org/project/hypothesis-networkx/] generates graph data structures,
 and hypothesis-bio^[https://pypi.org/project/hypothesis-bio/] generates formats suitable for bioinformatics.
 As it is used by more researchers, the number of research applications will only increase.
@@ -63,15 +63,15 @@ This is true both because of the much wider array of software that can now easil
 and because it has a novel implementation that lifts a major difficulty that prior research on software testing faces.
 
 Much of software testing research boils down to variants on the following problem:
-Given some interestingness test (e.g. that it triggers a bug in some software),
-how do we generate a "good" test case that passes that interestingness test?
+Given some interestingness condition (e.g., that it triggers a bug in some software),
+how do we generate a "good" test case that satisfies that condition?
 
 Particular sub-problems of this are:
 
-1. How do we generate test cases that satisfy difficult interestingness tests?
+1. How do we generate test cases that satisfy difficult interestingness conditions?
 2. How do we ensure we generate only valid test cases? (the *test-case validity problem* - see @DBLP:conf/pldi/RegehrCCEEY12)
 3. How do we generate human readable test cases?
- 
+
 Traditionally property-based testing has adopted random test-case generation to find interesting test cases,
 followed by test-case reduction (see @DBLP:conf/pldi/RegehrCCEEY12, @DBLP:journals/tse/ZellerH02) to turn them into more human readable ones,
 requiring the users to manually specify a *validity oracle* (a predicate that identifies if an arbitrary test case is valid) to avoid invalid test cases.
@@ -94,7 +94,7 @@ and improvements to the generation process can operate solely on this universal 
 Currently Hypothesis uses this format to support two major use cases:
 
 1. It is the basis of its approach to test-case reduction, allowing it to support more powerful test-case reduction than is found in most property-based testing libraries with no user intervention.
-2. It supports Targeted Property-Based Testing [@DBLP:conf/issta/LoscherS17], which uses a score to guide testing towards a particular goal (e.g. maximising an error term). In the original implementation this would require custom mutation operators per test,
+2. It supports Targeted Property-Based Testing [@DBLP:conf/issta/LoscherS17], which uses a score to guide testing towards a particular goal (e.g., maximising an error term). In the original implementation this would require custom mutation operators per test,
    but in Hypothesis this mutation is transparent to the user and they need only specify the goal.
 
 The internal format is flexible and contains rich information about the structure of generated test cases,
