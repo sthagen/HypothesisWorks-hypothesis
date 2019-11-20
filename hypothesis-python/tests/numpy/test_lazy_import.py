@@ -17,5 +17,23 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version_info__ = (4, 44, 4)
-__version__ = ".".join(map(str, __version_info__))
+from hypothesis.internal.compat import CAN_PACK_HALF_FLOAT
+
+SHOULD_NOT_IMPORT_NUMPY = """
+import sys
+from hypothesis import given, strategies as st
+
+@given(st.integers() | st.floats() | st.sampled_from(["a", "b"]))
+def test_no_numpy_import(x):
+    assert "numpy" not in sys.modules
+"""
+
+
+def test_hypothesis_is_not_the_first_to_import_numpy(testdir):
+    result = testdir.runpytest(testdir.makepyfile(SHOULD_NOT_IMPORT_NUMPY))
+    # OK, we import numpy on Python < 3.6 to get 16-bit float support.
+    # But otherwise we only import it if the user did so first.
+    if CAN_PACK_HALF_FLOAT:
+        result.assert_outcomes(passed=1, failed=0)
+    else:
+        result.assert_outcomes(passed=0, failed=1)
