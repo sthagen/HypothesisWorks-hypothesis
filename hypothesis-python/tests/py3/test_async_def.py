@@ -17,5 +17,26 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version_info__ = (4, 45, 0)
-__version__ = ".".join(map(str, __version_info__))
+import asyncio
+import sys
+from unittest import TestCase
+
+import pytest
+
+import hypothesis.strategies as st
+from hypothesis import assume, given
+
+
+class TestAsyncioRun(TestCase):
+
+    timeout = 5
+
+    def execute_example(self, f):
+        asyncio.run(f())
+
+    @pytest.mark.skipif(sys.version_info[:2] < (3, 7), reason="asyncio.run() is new")
+    @given(st.text())
+    async def test_foo(self, x):
+        assume(x)
+        await asyncio.sleep(0.001)
+        assert x

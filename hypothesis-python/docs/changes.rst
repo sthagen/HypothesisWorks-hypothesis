@@ -21,6 +21,30 @@ Hypothesis APIs come in three flavours:
 You should generally assume that an API is internal unless you have specific
 information to the contrary.
 
+.. _v4.45.0:
+
+-------------------
+4.45.0 - 2019-11-20
+-------------------
+
+This release supports :obj:`python:typing.Final` and :obj:`python:typing.TypedDict`
+in :func:`~hypothesis.strategies.from_type`.
+
+.. _v4.44.5:
+
+-------------------
+4.44.5 - 2019-11-20
+-------------------
+
+This patch disables our :pypi:`pytest` plugin when running on versions
+of :pypi:`pytest` before 4.3, the oldest our plugin supports.
+Note that at time of writing the Pytest developers only support 4.6 and later!
+
+Hypothesis *tests* using :func:`@given() <hypothesis.given>` work on any
+test runner, but our integrations to e.g. avoid example database collisions
+when combined with ``@pytest.mark.parametrize`` eventually drop support
+for obsolete versions.
+
 .. _v4.44.4:
 
 -------------------
