@@ -27,7 +27,7 @@ import six
 import hypothesis.extra.numpy as nps
 import hypothesis.strategies as st
 from hypothesis import HealthCheck, assume, given, note, settings
-from hypothesis.errors import InvalidArgument
+from hypothesis.errors import InvalidArgument, Unsatisfiable
 from hypothesis.internal.compat import PY2, binary_type, text_type
 from hypothesis.searchstrategy import SearchStrategy
 from tests.common.debug import find_any, minimal
@@ -203,6 +203,7 @@ def test_can_generate_scalar_dtypes(dtype):
     assert isinstance(dtype, np.dtype)
 
 
+@settings(max_examples=100)
 @given(
     nps.nested_dtypes(
         subtype_strategy=st.one_of(
@@ -214,6 +215,7 @@ def test_can_generate_compound_dtypes(dtype):
     assert isinstance(dtype, np.dtype)
 
 
+@settings(max_examples=100)
 @given(
     nps.nested_dtypes(
         subtype_strategy=st.one_of(
@@ -226,6 +228,7 @@ def test_can_generate_data_compound_dtypes(arr):
     assert isinstance(arr, np.ndarray)
 
 
+@settings(max_examples=100)
 @given(nps.nested_dtypes(max_itemsize=400), st.data())
 def test_infer_strategy_from_dtype(dtype, data):
     # Given a dtype
@@ -338,6 +341,12 @@ def test_byte_string_dtypes_generate_unicode_strings(data):
 @given(nps.arrays(dtype="int8", shape=st.integers(0, 20), unique=True))
 def test_array_values_are_unique(arr):
     assert len(set(arr)) == len(arr)
+
+
+def test_cannot_generate_unique_array_of_too_many_elements():
+    strat = nps.arrays(dtype=int, elements=st.integers(0, 5), shape=10, unique=True)
+    with pytest.raises(Unsatisfiable):
+        strat.example()
 
 
 @given(
@@ -548,6 +557,11 @@ def test_minimize_negative_tuple_axes(ndim, data):
         nps.valid_tuple_axes(ndim, min_size, max_size), lambda x: all(i < 0 for i in x)
     )
     assert len(smallest) == min_size
+
+
+@given(nps.broadcastable_shapes((), min_side=0, max_side=0, min_dims=0, max_dims=0))
+def test_broadcastable_empty_shape(shape):
+    assert shape == ()
 
 
 @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow])
