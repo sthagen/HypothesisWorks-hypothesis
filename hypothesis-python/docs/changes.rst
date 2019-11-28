@@ -10,6 +10,35 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 4.x
 ==============
 
+.. _v4.48.1:
+
+-------------------
+4.48.1 - 2019-11-28
+-------------------
+
+This release adds some heuristics to test case generation that try to ensure that test cases generated early on will be relatively small.
+
+This fixes a bug introduced in :ref:`Hypothesis 4.42.0 <v4.42.0>` which would cause occasional
+:obj:`~hypothesis.HealthCheck.too_slow` failures on some tests.
+
+.. _v4.48.0:
+
+-------------------
+4.48.0 - 2019-11-28
+-------------------
+
+This release revokes the deprecation of ``find``, as we've now rebuilt it on top of
+``@given``, which means it has minimal maintenance burden and we're happy to support it.
+
+.. _v4.47.5:
+
+-------------------
+4.47.5 - 2019-11-28
+-------------------
+
+This release rebuilds ``find()`` on top of ``@given`` in order to have more code in common.
+It should have minimal user visible effect.
+
 .. _v4.47.4:
 
 -------------------

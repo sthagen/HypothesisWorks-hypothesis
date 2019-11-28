@@ -24,7 +24,7 @@ from hypothesis._settings import Verbosity, settings
 from hypothesis.reporting import default as default_reporter, with_reporter
 from hypothesis.strategies import booleans, integers, lists
 from tests.common.debug import minimal
-from tests.common.utils import capture_out, checks_deprecated_behaviour, fails
+from tests.common.utils import capture_out, fails
 
 
 @contextmanager
@@ -72,7 +72,6 @@ def test_includes_progress_in_verbose_mode():
     assert u"Falsifying example: " in out
 
 
-@checks_deprecated_behaviour
 def test_prints_initial_attempts_on_find():
 
     with capture_verbosity() as o:
@@ -94,7 +93,7 @@ def test_prints_initial_attempts_on_find():
 
         foo()
 
-    assert u"Tried non-satisfying example" in o.getvalue()
+    assert u"Trying example" in o.getvalue()
 
 
 def test_includes_intermediate_results_in_verbose_mode():

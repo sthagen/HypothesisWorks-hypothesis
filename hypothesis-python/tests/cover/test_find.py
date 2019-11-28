@@ -17,5 +17,32 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version_info__ = (4, 48, 1)
-__version__ = ".".join(map(str, __version_info__))
+from random import Random
+
+from hypothesis import Phase, find, settings, strategies as st
+
+
+def test_find_uses_provided_random():
+    prev = None
+
+    for _ in range(3):
+        seen = []
+
+        def test(v):
+            if len(v) > 5:
+                if seen:
+                    return v == seen[0]
+                else:
+                    seen.append(v)
+                    return True
+
+        result = find(
+            st.text(),
+            test,
+            random=Random(13),
+            settings=settings(phases=[Phase.generate], max_examples=1000),
+        )
+        if prev is None:
+            prev = result
+        else:
+            assert prev == result
