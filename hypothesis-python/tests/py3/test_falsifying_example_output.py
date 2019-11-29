@@ -17,5 +17,19 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version_info__ = (4, 50, 2)
-__version__ = ".".join(map(str, __version_info__))
+import pytest
+
+from hypothesis import given, strategies as st
+from tests.common.utils import capture_out
+
+
+def test_vararg_output():
+    @given(foo=st.text())
+    def test(*args, foo):
+        assert False
+
+    with capture_out() as cap:
+        with pytest.raises(AssertionError):
+            test(1, 2, 3)
+
+    assert "1, 2, 3" in cap.getvalue()
