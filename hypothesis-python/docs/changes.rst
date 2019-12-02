@@ -10,6 +10,25 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 4.x
 ==============
 
+.. _v4.50.6:
+
+-------------------
+4.50.6 - 2019-12-02
+-------------------
+
+This patch removes some old debugging helpers in our Numpy extra which have
+not been needed since :issue:`1963` and :issue:`2245`.
+
+.. _v4.50.5:
+
+-------------------
+4.50.5 - 2019-12-01
+-------------------
+
+This patch fixes :issue:`2229`, where Numpy arrays of unsized strings would
+only ever have strings of size one due to an interaction between our generation
+logic and Numpy's allocation strategy.
+
 .. _v4.50.4:
 
 -------------------
