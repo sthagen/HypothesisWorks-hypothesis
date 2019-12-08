@@ -10,6 +10,18 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 4.x
 ==============
 
+.. _v4.51.0:
+
+-------------------
+4.51.0 - 2019-12-07
+-------------------
+
+This release deprecates use of :func:`@example <hypothesis.example>`,
+:func:`@seed <hypothesis.seed>`, or :func:`@reproduce_failure <hypothesis.reproduce_failure>`
+without :func:`@given <hypothesis.given>`.
+
+Thanks to Nick Anyos for the patch!
+
 .. _v4.50.8:
 
 -------------------
@@ -103,7 +115,7 @@ to raise ``InvalidArgument`` now that these errors are caught.
 4.49.0 - 2019-11-28
 -------------------
 
-This release significantly improves the data distribution in rule based stateful testing <stateful_testing>,
+This release significantly improves the data distribution in :doc:`rule based stateful testing <stateful>`,
 by using a technique called `Swarm Testing (Groce, Alex, et al. "Swarm testing."
 Proceedings of the 2012 International Symposium on Software Testing and Analysis. ACM, 2012.) <https://agroce.github.io/issta12.pdf>`_
 to select which rules are run in any given test case. This should allow it to find many issues that it would previously have missed.
