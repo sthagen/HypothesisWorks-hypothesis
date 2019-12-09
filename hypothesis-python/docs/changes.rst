@@ -10,6 +10,46 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 4.x
 ==============
 
+.. _v4.53.1:
+
+-------------------
+4.53.1 - 2019-12-09
+-------------------
+
+This release changes the size distribution of the number of steps run in
+stateful testing: It will now almost always run the maximum number of steps
+permitted.
+
+.. _v4.53.0:
+
+-------------------
+4.53.0 - 2019-12-09
+-------------------
+
+:ref:`statistics` now include the best score seen for each label, which can help avoid
+`the threshold problem <https://hypothesis.works/articles/threshold-problem/>`__  when
+the minimal example shrinks right down to the threshold of failure (:issue:`2180`).
+
+.. _v4.52.0:
+
+-------------------
+4.52.0 - 2019-12-09
+-------------------
+
+This release changes the ``stateful_step_count`` setting to raise an error if
+set to ``0``. This is a backwards compatible change because a value of ``0``
+would never have worked and attempting to run it would have resulted in an
+internal assertion error.
+
+.. _v4.51.1:
+
+-------------------
+4.51.1 - 2019-12-09
+-------------------
+
+This release makes a small internal change to the distribution of test cases.
+It is unlikely to have much user visible impact.
+
 .. _v4.51.0:
 
 -------------------
