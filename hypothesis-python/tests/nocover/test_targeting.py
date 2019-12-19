@@ -17,5 +17,19 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version_info__ = (4, 56, 1)
-__version__ = ".".join(map(str, __version_info__))
+import pytest
+
+from hypothesis import Phase, given, settings, strategies as st, target
+
+
+def test_targeting_increases_max_length():
+    strat = st.lists(st.booleans())
+
+    @settings(database=None, max_examples=200, phases=[Phase.generate, Phase.target])
+    @given(strat)
+    def test_with_targeting(ls):
+        target(float(len(ls)))
+        assert len(ls) <= 80
+
+    with pytest.raises(AssertionError):
+        test_with_targeting()

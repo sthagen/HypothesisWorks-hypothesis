@@ -10,6 +10,39 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 4.x
 ==============
 
+.. _v4.56.1:
+
+-------------------
+4.56.1 - 2019-12-19
+-------------------
+
+This release further improves the optimisation algorithm for :ref:`targeted property-based testing <targeted-search>`.
+
+.. _v4.56.0:
+
+-------------------
+4.56.0 - 2019-12-18
+-------------------
+
+This release enables deprecation warnings even when the
+:obj:`~hypothesis.settings.verbosity` setting is ``quiet``,
+in preparation for Hypothesis 5.0 (:issue:`2218`).
+
+Warnings can still be filtered by the standard mechanisms
+provided in the standard-library :mod:`python:warnings` module.
+
+.. _v4.55.4:
+
+-------------------
+4.55.4 - 2019-12-18
+-------------------
+
+This release improves Hypothesis's management of the set of test cases it
+tracks between runs. It will only do anything if you have ``Phase.target``
+enabled and an example database set.
+In those circumstances it should result in a more thorough and faster set of examples
+that are tried on each run.
+
 .. _v4.55.3:
 
 -------------------
