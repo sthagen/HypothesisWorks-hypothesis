@@ -10,6 +10,25 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 4.x
 ==============
 
+.. _v4.56.3:
+
+-------------------
+4.56.3 - 2019-12-22
+-------------------
+
+This release fixes a small internal bug in shrinking which could have caused it
+to perform slightly more tests than were necessary. Fixing this shouldn't have
+much effect but it will make shrinking slightly faster.
+
+.. _v4.56.2:
+
+-------------------
+4.56.2 - 2019-12-21
+-------------------
+
+This release removes an internal heuristic that was no longer providing much
+benefit. It is unlikely that there will be any user visible effect.
+
 .. _v4.56.1:
 
 -------------------
