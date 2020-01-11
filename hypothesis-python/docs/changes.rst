@@ -10,6 +10,31 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.1.4:
+
+------------------
+5.1.4 - 2020-01-11
+------------------
+
+This patch fixes a bug where errors in third-party extensions such as
+:pypi:`hypothesis-trio` or :pypi:`hypothesis-jsonschema` were incorrectly
+considered to be Hypothesis internal errors, which could result in
+confusing error messages.
+
+Thanks to Vincent Michel for reporting and fixing the bug!
+
+.. _v5.1.3:
+
+------------------
+5.1.3 - 2020-01-11
+------------------
+
+This release converts the type hint comments on our public API to
+:pep:`484` type annotations.
+
+Thanks to Ivan Levkivskyi for :pypi:`com2ann` - with the refactoring
+tools from :`5.0.1 <v5.0.1>` it made this process remarkably easy!
+
 .. _v5.1.2:
 
 ------------------
