@@ -10,6 +10,16 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.1.5:
+
+------------------
+5.1.5 - 2020-01-12
+------------------
+
+This patch fixes an internal error when running in an :pypi:`IPython` repl or
+:pypi:`Jupyter` notebook on Windows (:issue:`2319`), and an internal error on
+Python 3.5.1 (:issue:`2318`).
+
 .. _v5.1.4:
 
 ------------------
@@ -33,7 +43,7 @@ This release converts the type hint comments on our public API to
 :pep:`484` type annotations.
 
 Thanks to Ivan Levkivskyi for :pypi:`com2ann` - with the refactoring
-tools from :`5.0.1 <v5.0.1>` it made this process remarkably easy!
+tools from :ref:`5.0.1 <v5.0.1>` it made this process remarkably easy!
 
 .. _v5.1.2:
 
@@ -188,7 +198,7 @@ with :func:`~hypothesis.strategies.from_type`:
 
 Note that using :func:`~hypothesis.strategies.from_type` with one of the above strategies will not
 ensure that the the specified function will execute successfully (ie : the strategy returned for
-``from_type(typing.SupportsAbs)`` may include NaNs or things this will cause the :func:`python:abs`
+``from_type(typing.SupportsAbs)`` may include NaNs or things which cause the :func:`python:abs`
 function to error. )
 
 Thanks to Lea Provenzano for this patch.
