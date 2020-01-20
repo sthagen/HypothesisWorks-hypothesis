@@ -10,6 +10,27 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.2.0:
+
+------------------
+5.2.0 - 2020-01-19
+------------------
+
+This release allows :func:`~hypothesis.extra.numpy.from_dtype` to generate
+Unicode strings which cannot be encoded in UTF-8, but are valid in Numpy
+arrays (which use UTF-32).
+
+.. _v5.1.6:
+
+------------------
+5.1.6 - 2020-01-19
+------------------
+
+This patch fixes :issue:`2320`, where ``from_type(Set[Hashable])`` could raise
+an internal error because ``Decimal("snan")`` is of a hashable type, but raises
+an error when hashed.  We now ensure that set elements and dict keys in generic
+types can actually be hashed.
+
 .. _v5.1.5:
 
 ------------------
