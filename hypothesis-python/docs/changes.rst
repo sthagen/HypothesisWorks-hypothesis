@@ -10,6 +10,35 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.8.0:
+
+------------------
+5.8.0 - 2020-03-24
+------------------
+
+This release adds a :ref:`.hypothesis.fuzz_one_input <fuzz_one_input>`
+attribute to :func:`@given <hypothesis.given>` tests, for easy integration
+with external fuzzers such as `python-afl <https://github.com/jwilk/python-afl>`__
+(supporting :issue:`171`).
+
+.. _v5.7.2:
+
+------------------
+5.7.2 - 2020-03-24
+------------------
+
+This patch fixes :issue:`2341`, ensuring that the printed output from a
+stateful test cannot use variable names before they are defined.
+
+.. _v5.7.1:
+
+------------------
+5.7.1 - 2020-03-23
+------------------
+
+This patch fixes :issue:`2375`, preventing incorrect failure when a function
+scoped fixture is overridden with a higher scoped fixture.
+
 .. _v5.7.0:
 
 ------------------
