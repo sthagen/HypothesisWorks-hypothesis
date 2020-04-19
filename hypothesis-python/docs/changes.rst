@@ -10,6 +10,122 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.10.1:
+
+-------------------
+5.10.1 - 2020-04-19
+-------------------
+
+This release is a small internal refactoring to how shrinking interacts with :ref:`targeted property-based testing <targeted-search>` that should have no user user visible impact.
+
+.. _v5.10.0:
+
+-------------------
+5.10.0 - 2020-04-18
+-------------------
+
+This release improves our support for datetimes and times around DST transitions.
+
+:func:`~hypothesis.strategies.times` and :func:`~hypothesis.strategies.datetimes`
+are now sometimes generated with ``fold=1``, indicating that they represent the
+second occurrence of a given wall-time when clocks are set backwards.
+This may be set even when there is no transition, in which case the ``fold``
+value should be ignored.
+
+For consistency, timezones provided by the :pypi:`pytz` package can now
+generate imaginary times (such as the hour skipped over when clocks 'spring forward'
+to daylight saving time, or during some historical timezone transitions).
+All other timezones have always supported generation of imaginary times.
+
+If you prefer the previous behaviour, :func:`~hypothesis.strategies.datetimes`
+now takes an argument ``allow_imaginary`` which defaults to ``True`` but
+can be set to ``False`` for any timezones strategy.
+
+.. _v5.9.1:
+
+------------------
+5.9.1 - 2020-04-16
+------------------
+
+This patch fixes the rendering of :func:`~hypothesis.strategies.binary`
+docstring by using the proper backticks syntax.
+
+.. _v5.9.0:
+
+------------------
+5.9.0 - 2020-04-15
+------------------
+
+Failing tests which use :func:`~hypothesis.target` now report the highest
+score observed for each target alongside the failing example(s), even without
+:ref:`explicitly showing test statistics <statistics>`.
+
+This improves the debugging workflow for tests of accuracy, which assert that the
+total imprecision is within some error budget - for example, ``abs(a - b) < 0.5``.
+Previously, shrinking to a minimal failing example could often make errors seem
+smaller or more subtle than they really are (see `the threshold problem
+<https://hypothesis.works/articles/threshold-problem/>`__, and :issue:`2180`).
+
+.. _v5.8.6:
+
+------------------
+5.8.6 - 2020-04-15
+------------------
+
+This patch improves the docstring of :func:`~hypothesis.strategies.binary`,
+the :func:`python:repr` of :func:`~hypothesis.strategies.sampled_from` on
+an :class:`python:enum.Enum` subclass, and a warning in our pytest plugin.
+There is no change in runtime behaviour.
+
+.. _v5.8.5:
+
+------------------
+5.8.5 - 2020-04-15
+------------------
+
+This release (potentially very significantly) improves the performance of failing tests in some rare cases,
+mostly only relevant when using :ref:`targeted property-based testing <targeted-search>`,
+by stopping further optimisation of unrelated test cases once a failing example is found.
+
+.. _v5.8.4:
+
+------------------
+5.8.4 - 2020-04-14
+------------------
+
+This release fixes :issue:`2395`, where under some circumstances targeted property-based testing could cause Hypothesis to get caught in an infinite loop.
+
+.. _v5.8.3:
+
+------------------
+5.8.3 - 2020-04-12
+------------------
+
+This patch teaches :func:`~hypothesis.strategies.builds` and
+:func:`~hypothesis.strategies.from_type` to use the ``__signature__``
+attribute of classes where it has been set, improving our support
+for :pypi:`Pydantic` models (`in pydantic >= 1.5
+<https://github.com/samuelcolvin/pydantic/pull/1034>`__).
+
+.. _v5.8.2:
+
+------------------
+5.8.2 - 2020-04-12
+------------------
+
+This release improves the performance of the part of the core engine that
+deliberately generates duplicate values.
+
+.. _v5.8.1:
+
+------------------
+5.8.1 - 2020-04-12
+------------------
+
+This patch improves :func:`~hypothesis.strategies.dates` shrinking, to simplify
+year, month, and day like :func:`~hypothesis.strategies.datetimes` rather than
+minimizing the number of days since 2000-01-01.
+
 .. _v5.8.0:
 
 ------------------

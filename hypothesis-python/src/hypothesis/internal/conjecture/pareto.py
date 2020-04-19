@@ -298,26 +298,39 @@ class ParetoOptimiser:
         # we run the tests we improve the pareto front because we work on the
         # bits that we haven't covered yet.
         i = len(self.front) - 1
-        while i >= 0:
+        prev = None
+        while i >= 0 and not self.__engine.interesting_examples:
             assert self.front
             i = min(i, len(self.front) - 1)
             target = self.front[i]
             if target.buffer in seen:
                 i -= 1
                 continue
+            assert target is not prev
+            prev = target
 
-            # Note that during shrinking we may discover other smaller examples
-            # that will get added to the front. It's OK to slip and and out of
-            # these - in particular we may move to new shrink targets that are
-            # not dominating the current target. This is fine, because they
-            # will be added to the front and processed on later iterations of
-            # this loop.
-            shrunk = self.__engine.shrink(
-                target,
-                lambda data: data.status >= Status.VALID
-                and dominance(data, target)
-                in (DominanceRelation.EQUAL, DominanceRelation.LEFT_DOMINATES),
-            )
+            def allow_transition(source, destination):
+                """Shrink to data that strictly pareto dominates the current
+                best value we've seen, which is the current target of the
+                shrinker.
+
+                Note that during shrinking we may discover other smaller
+                examples that this function will reject and will get added to
+                the front. This is fine, because they will be processed on
+                later iterations of this loop."""
+                if dominance(destination, source) == DominanceRelation.LEFT_DOMINATES:
+                    # If ``destination`` dominates ``source`` then ``source``
+                    # must be dominated in the front - either ``destination`` is in
+                    # the front, or it was not added to it because it was
+                    # dominated by something in it.,
+                    try:
+                        self.front.front.remove(source)
+                    except ValueError:
+                        pass
+                    return True
+                return False
+
+            shrunk = self.__engine.shrink(target, allow_transition=allow_transition)
             seen.add(shrunk.buffer)
 
             # Note that the front may have changed shape arbitrarily when
