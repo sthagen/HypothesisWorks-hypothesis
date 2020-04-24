@@ -13,5 +13,21 @@
 #
 # END HEADER
 
-__version_info__ = (5, 10, 4)
-__version__ = ".".join(map(str, __version_info__))
+import typing
+
+import pytest
+
+from hypothesis import given, strategies as st
+from hypothesis.internal.compat import PYPY
+
+
+class TreeForwardRefs(typing.NamedTuple):
+    val: int
+    l: typing.Optional["TreeForwardRefs"]
+    r: typing.Optional["TreeForwardRefs"]
+
+
+@pytest.mark.skipif(PYPY, reason="pypy36 does not resolve the forward refs")
+@given(st.builds(TreeForwardRefs))
+def test_resolves_forward_references_outside_annotations(t):
+    assert isinstance(t, TreeForwardRefs)

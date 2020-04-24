@@ -10,6 +10,35 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.10.4:
+
+-------------------
+5.10.4 - 2020-04-24
+-------------------
+
+This patch improves the internals of :func:`~hypothesis.strategies.builds` type
+inference, to handle recursive forward references in certain dataclasses.
+This is useful for e.g. :pypi:`hypothesmith`'s forthcoming :pypi:`LibCST` mode.
+
+.. _v5.10.3:
+
+-------------------
+5.10.3 - 2020-04-22
+-------------------
+
+This release reverses the order in which some operations are tried during shrinking.
+This should generally be a slight performance improvement, but most tests are unlikely to notice much difference.
+
+.. _v5.10.2:
+
+-------------------
+5.10.2 - 2020-04-22
+-------------------
+
+This patch fixes :issue:`2406`, where use of :obj:`pandas:pandas.Timestamp`
+objects as bounds for the :func:`~hypothesis.strategies.datetimes` strategy
+caused an internal error.  This bug was introduced in :ref:`version 5.8.1 <v5.8.2>`.
+
 .. _v5.10.1:
 
 -------------------
