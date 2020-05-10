@@ -10,6 +10,38 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.11.0:
+
+-------------------
+5.11.0 - 2020-05-07
+-------------------
+
+This release improves the interaction between :func:`~hypothesis.assume`
+and the :func:`@example() <hypothesis.example>` decorator, so that the
+following test no longer fails with ``UnsatisfiedAssumption`` (:issue:`2125`):
+
+.. code-block:: python
+
+    @given(value=floats(0, 1))
+    @example(value=0.56789)  # used to make the test fail!
+    @pytest.mark.parametrize("threshold", [0.5, 1])
+    def test_foo(threshold, value):
+        assume(value < threshold)
+        ...
+
+.. _v5.10.5:
+
+-------------------
+5.10.5 - 2020-05-04
+-------------------
+
+If you have :pypi:`django` installed but don't use it, this patch will make
+``import hypothesis`` a few hundred milliseconds faster (e.g. 0.704s -> 0.271s).
+
+Thanks to :pypi:`importtime-waterfall` for highlighting this problem and
+`Jake Vanderplas <https://twitter.com/jakevdp/status/1130983439862181888>`__ for
+the solution - it's impossible to misuse code from a module you haven't imported!
+
 .. _v5.10.4:
 
 -------------------
