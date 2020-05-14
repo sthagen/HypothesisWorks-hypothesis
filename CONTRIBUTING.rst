@@ -207,6 +207,7 @@ their individual contributions.
 * `Daniel J. West <https://github.com/danieljwest>`_
 * `David Bonner <https://github.com/rascalking>`_ (dbonner@gmail.com)
 * `David Chudzicki <https://github.com/dchudz>`_ (dchudz@gmail.com)
+* `David Mascharka <https://github.com/davidmascharka>`_
 * `Derek Gustafson <https://www.github.com/degustaf>`_
 * `Dion Misic <https://www.github.com/kingdion>`_ (dion.misic@gmail.com)
 * `Eduardo Enriquez <https://www.github.com/eduzen>`_ (eduardo.a.enriquez@gmail.com)
@@ -255,6 +256,7 @@ their individual contributions.
 * `Matt Bachmann <https://www.github.com/bachmann1234>`_ (bachmann.matt@gmail.com)
 * `Max Nordlund <https://www.github.com/maxnordlund>`_ (max.nordlund@gmail.com)
 * `Maxim Kulkin <https://www.github.com/maximkulkin>`_ (maxim.kulkin@gmail.com)
+* `Michel Alexandre Salim <https://github.com/michel-slm>`_ (michel@michel-slm.name)
 * `mulkieran <https://www.github.com/mulkieran>`_
 * `Nicholas Chammas <https://www.github.com/nchammas>`_
 * `Nick Anyos <https://www.github.com/NickAnyos>`_

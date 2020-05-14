@@ -10,6 +10,67 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.14.0:
+
+-------------------
+5.14.0 - 2020-05-13
+-------------------
+
+Passing ``min_magnitude=None`` to :func:`~hypothesis.strategies.complex_numbers` is now
+deprecated - you can explicitly pass ``min_magnitude=0``, or omit the argument entirely.
+
+.. _v5.13.1:
+
+-------------------
+5.13.1 - 2020-05-13
+-------------------
+
+This patch fixes an internal error in :func:`~hypothesis.strategies.from_type`
+for :class:`python:typing.NamedTuple` in Python 3.9.  Thanks to Michel Salim
+for reporting and fixing :issue:`2427`!
+
+.. _v5.13.0:
+
+-------------------
+5.13.0 - 2020-05-12
+-------------------
+
+This release upgrades the test statistics available via the
+:ref:`--hypothesis-show-statistics <statistics>` option to include
+separate information on each of the :attr:`~hypothesis.settings.phases`
+(:issue:`1555`).
+
+.. _v5.12.2:
+
+-------------------
+5.12.2 - 2020-05-12
+-------------------
+
+This patch teaches the :func:`~hypothesis.strategies.from_type` internals to
+return slightly more efficient strategies for some generic sets and mappings.
+
+.. _v5.12.1:
+
+-------------------
+5.12.1 - 2020-05-12
+-------------------
+
+This patch adds a ``# noqa`` comment for :pypi:`flake8` 3.8.0, which
+disagrees with :pypi:`mypy` about how to write the type of ``...``.
+
+.. _v5.12.0:
+
+-------------------
+5.12.0 - 2020-05-10
+-------------------
+
+This release limits the maximum duration of the shrinking phase to five minutes,
+so that Hypothesis does not appear to hang when making very slow progress
+shrinking a failing example (:issue:`2340`).
+
+If one of your tests triggers this logic, we would really appreciate a bug
+report to help us improve the shrinker for difficult but realistic workloads.
+
 .. _v5.11.0:
 
 -------------------

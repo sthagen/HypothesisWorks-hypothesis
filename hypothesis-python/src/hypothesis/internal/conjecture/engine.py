@@ -13,9 +13,12 @@
 #
 # END HEADER
 
-from collections import Counter, defaultdict
+import math
+from collections import defaultdict
+from contextlib import contextmanager
 from enum import Enum
 from random import Random, getrandbits
+from time import perf_counter
 from weakref import WeakKeyDictionary
 
 import attr
@@ -41,7 +44,7 @@ from hypothesis.internal.conjecture.junkdrawer import clamp
 from hypothesis.internal.conjecture.pareto import NO_SCORE, ParetoFront, ParetoOptimiser
 from hypothesis.internal.conjecture.shrinker import Shrinker, sort_key
 from hypothesis.internal.healthcheck import fail_health_check
-from hypothesis.reporting import base_report
+from hypothesis.reporting import base_report, report
 
 # Tell pytest to omit the body of this module from tracebacks
 # https://docs.pytest.org/en/latest/example/simple.html#writing-well-integrated-assertion-helpers
@@ -64,11 +67,18 @@ class HealthCheckState:
 
 
 class ExitReason(Enum):
-    max_examples = 0
-    max_iterations = 1
-    max_shrinks = 3
-    finished = 4
-    flaky = 5
+    max_examples = "settings.max_examples={s.max_examples}"
+    max_iterations = (
+        "settings.max_examples={s.max_examples}, "
+        "but < 10% of examples satisfied assumptions"
+    )
+    max_shrinks = "shrunk example %s times" % (MAX_SHRINKS,)
+    finished = "nothing left to do"
+    flaky = "test was flaky"
+    very_slow_shrinking = "shrinking was very slow"
+
+    def describe(self, settings):
+        return self.value.format(s=settings)
 
 
 class RunIsComplete(Exception):
@@ -80,15 +90,16 @@ class ConjectureRunner:
         self._test_function = test_function
         self.settings = settings or Settings()
         self.shrinks = 0
+        self.finish_shrinking_deadline = None
         self.call_count = 0
-        self.event_call_counts = Counter()
         self.valid_examples = 0
         self.random = random or Random(getrandbits(128))
         self.database_key = database_key
-        self.status_runtimes = {}
 
-        self.all_drawtimes = []
-        self.all_runtimes = []
+        # Global dict of per-phase statistics, and a list of per-call stats
+        # which transfer to the global dict at the end of each phase.
+        self.statistics = {}
+        self.stats_per_test_case = []
 
         self.events_to_strings = WeakKeyDictionary()
 
@@ -121,6 +132,20 @@ class ConjectureRunner:
         # shrinking where we need to know about the structure of the
         # executed test case.
         self.__data_cache = LRUReusedCache(CACHE_SIZE)
+
+    @contextmanager
+    def _log_phase_statistics(self, phase):
+        self.stats_per_test_case.clear()
+        start_time = perf_counter()
+        try:
+            yield
+        finally:
+            self.statistics[phase + "-phase"] = {
+                "duration-seconds": perf_counter() - start_time,
+                "test-cases": list(self.stats_per_test_case),
+                "distinct-failures": len(self.interesting_examples),
+                "shrinks-successful": self.shrinks,
+            }
 
     @property
     def should_optimise(self):
@@ -164,7 +189,14 @@ class ConjectureRunner:
             # the KeyboardInterrupt, never continue to the code below.
             if not interrupted:  # pragma: no branch
                 data.freeze()
-                self.note_details(data)
+                call_stats = {
+                    "status": data.status.name.lower(),
+                    "runtime": data.finish_time - data.start_time,
+                    "drawtime": math.fsum(data.draw_times),
+                    "events": sorted({self.event_to_string(e) for e in data.events}),
+                }
+                self.stats_per_test_case.append(call_stats)
+                self.__data_cache[data.buffer] = data.as_result()
 
         self.debug_data(data)
 
@@ -220,6 +252,21 @@ class ConjectureRunner:
 
             if self.shrinks >= MAX_SHRINKS:
                 self.exit_with(ExitReason.max_shrinks)
+
+        if (
+            self.finish_shrinking_deadline is not None
+            and self.finish_shrinking_deadline < perf_counter()
+        ):
+            # See https://github.com/HypothesisWorks/hypothesis/issues/2340
+            report(
+                "WARNING: Hypothesis has spent more than five minutes working to shrink "
+                "a failing example, and stopped because it is making very slow "
+                "progress.  When you re-run your tests, shrinking will resume and "
+                "may take this long before aborting again.\n"
+                "PLEASE REPORT THIS if you can provide a reproducing example, so that "
+                "we can improve shrinking performance for everyone."
+            )
+            self.exit_with(ExitReason.very_slow_shrinking)
 
         if not self.interesting_examples:
             # Note that this logic is reproduced to end the generation phase when
@@ -362,15 +409,6 @@ class ConjectureRunner:
     def pareto_key(self):
         return self.sub_key(b"pareto")
 
-    def note_details(self, data):
-        self.__data_cache[data.buffer] = data.as_result()
-        runtime = max(data.finish_time - data.start_time, 0.0)
-        self.all_runtimes.append(runtime)
-        self.all_drawtimes.extend(data.draw_times)
-        self.status_runtimes.setdefault(data.status, []).append(runtime)
-        for event in set(map(self.event_to_string, data.events)):
-            self.event_call_counts[event] += 1
-
     def debug(self, message):
         if self.settings.verbosity >= Verbosity.debug:
             base_report(message)
@@ -501,6 +539,9 @@ class ConjectureRunner:
                         break
 
     def exit_with(self, reason):
+        self.statistics["stopped-because"] = reason.describe(self.settings)
+        if self.best_observed_targets:
+            self.statistics["targets"] = dict(self.best_observed_targets)
         self.debug("exit_with(%s)" % (reason.name,))
         self.exit_reason = reason
         raise RunIsComplete()
@@ -810,15 +851,17 @@ class ConjectureRunner:
             ParetoOptimiser(self).run()
 
     def _run(self):
-        self.reuse_existing_examples()
-        self.generate_new_examples()
-
-        # We normally run the targeting phase mixed in with the generate phase,
-        # but if we've been asked to run it but not generation then we have to
-        # run it explciitly on its own here.
-        if Phase.generate not in self.settings.phases:
-            self.optimise_targets()
-        self.shrink_interesting_examples()
+        with self._log_phase_statistics("reuse"):
+            self.reuse_existing_examples()
+        with self._log_phase_statistics("generate"):
+            self.generate_new_examples()
+            # We normally run the targeting phase mixed in with the generate phase,
+            # but if we've been asked to run it but not generation then we have to
+            # run it explciitly on its own here.
+            if Phase.generate not in self.settings.phases:
+                self.optimise_targets()
+        with self._log_phase_statistics("shrink"):
+            self.shrink_interesting_examples()
         self.exit_with(ExitReason.finished)
 
     def new_conjecture_data(self, prefix, max_length=BUFFER_SIZE, observer=None):
@@ -843,6 +886,12 @@ class ConjectureRunner:
             return
 
         self.debug("Shrinking interesting examples")
+
+        # If the shrinking phase takes more than five minutes, abort it early and print
+        # a warning.   Many CI systems will kill a build after around ten minutes with
+        # no output, and appearing to hang isn't great for interactive use either -
+        # showing partially-shrunk examples is better than quitting with no examples!
+        self.finish_shrinking_deadline = perf_counter() + 300
 
         for prev_data in sorted(
             self.interesting_examples.values(), key=lambda d: sort_key(d.buffer)
