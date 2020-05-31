@@ -185,6 +185,7 @@ their individual contributions.
 
 * `Adam Johnson <https://github.com/adamchainz>`_
 * `Adam Sven Johnson <https://www.github.com/pkqk>`_
+* `Akash Suresh <https://www.github.com/akash-suresh>`_ (akashsuresh36@gmail.com)
 * `Alex Gaynor <https://github.com/alex>`_
 * `Alex Stapleton <https://www.github.com/public>`_
 * `Alex Willmer <https://github.com/moreati>`_ (alex@moreati.org.uk)
@@ -210,6 +211,7 @@ their individual contributions.
 * `David Mascharka <https://github.com/davidmascharka>`_
 * `Derek Gustafson <https://www.github.com/degustaf>`_
 * `Dion Misic <https://www.github.com/kingdion>`_ (dion.misic@gmail.com)
+* `Dmitry Dygalo <https://www.github.com/Stranger6667>`_
 * `Eduardo Enriquez <https://www.github.com/eduzen>`_ (eduardo.a.enriquez@gmail.com)
 * `El Awbery <https://www.github.com/ElAwbery>`_
 * `Emmanuel Leblond <https://www.github.com/touilleMan>`_
@@ -265,6 +267,7 @@ their individual contributions.
 * `Paul Lorett Amazona <https://github.com/whatevergeek>`_
 * `Paul Stiverson <https://github.com/thismatters>`_
 * `Peadar Coyle <https://github.com/springcoil>`_ (peadarcoyle@gmail.com)
+* `Petr Viktorin <https://github.com/encukou>`_
 * `Pierre-Jean Campigotto <https://github.com/PJCampi>`_
 * `Richard Boulton <https://www.github.com/rboulton>`_ (richard@tartarus.org)
 * `Robert Knight <https://github.com/robertknight>`_ (robertknight@gmail.com)

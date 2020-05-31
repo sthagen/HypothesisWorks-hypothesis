@@ -19,6 +19,7 @@ import operator
 import random
 import string
 import sys
+import threading
 import typing
 from decimal import Context, Decimal, localcontext
 from fractions import Fraction
@@ -150,7 +151,20 @@ def convert_value(v):
     return (type(v), v)
 
 
-STRATEGY_CACHE = LRUReusedCache(1024)
+_CACHE = threading.local()
+
+
+def get_cache() -> LRUReusedCache:
+    try:
+        return _CACHE.STRATEGY_CACHE
+    except AttributeError:
+        _CACHE.STRATEGY_CACHE = LRUReusedCache(1024)
+        return _CACHE.STRATEGY_CACHE
+
+
+def clear_cache() -> None:
+    cache = get_cache()
+    cache.clear()
 
 
 def cacheable(fn: T) -> T:
@@ -161,18 +175,19 @@ def cacheable(fn: T) -> T:
         except TypeError:
             return fn(*args, **kwargs)
         cache_key = (fn, tuple(map(convert_value, args)), frozenset(kwargs_cache_key))
+        cache = get_cache()
         try:
-            if cache_key in STRATEGY_CACHE:
-                return STRATEGY_CACHE[cache_key]
+            if cache_key in cache:
+                return cache[cache_key]
         except TypeError:
             return fn(*args, **kwargs)
         else:
             result = fn(*args, **kwargs)
             if not isinstance(result, SearchStrategy) or result.is_cacheable:
-                STRATEGY_CACHE[cache_key] = result
+                cache[cache_key] = result
             return result
 
-    cached_strategy.__clear_cache = STRATEGY_CACHE.clear
+    cached_strategy.__clear_cache = clear_cache
     return cached_strategy
 
 
@@ -2094,7 +2109,7 @@ def emails() -> SearchStrategy[str]:
 @defines_strategy
 @deprecated_posargs
 def functions(
-    *, like: Callable[..., Any] = lambda: None, returns: SearchStrategy[Any] = none()
+    *, like: Callable[..., Any] = lambda: None, returns: SearchStrategy[Any] = None
 ) -> SearchStrategy[Callable[..., Any]]:
     # The proper type signature of `functions()` would have T instead of Any, but mypy
     # disallows default args for generics: https://github.com/python/mypy/issues/3737
@@ -2113,12 +2128,17 @@ def functions(
     Generated functions can only be called within the scope of the ``@given``
     which created them.  This strategy does not support ``.example()``.
     """
-    check_type(SearchStrategy, returns)
     if not callable(like):
         raise InvalidArgument(
             "The first argument to functions() must be a callable to imitate, "
             "but got non-callable like=%r" % (nicerepr(like),)
         )
+
+    if returns is None:
+        hints = get_type_hints(like)
+        returns = from_type(hints.get("return", type(None)))
+
+    check_type(SearchStrategy, returns)
     return FunctionStrategy(like, returns)
 
 

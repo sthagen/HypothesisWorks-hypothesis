@@ -10,6 +10,32 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.16.0:
+
+-------------------
+5.16.0 - 2020-05-27
+-------------------
+
+:func:`~hypothesis.strategies.functions` can now infer the appropriate ``returns``
+strategy if you pass a ``like`` function with a return-type annotation.  Before,
+omitting the ``returns`` argument would generate functions that always returned None.
+
+.. _v5.15.1:
+
+-------------------
+5.15.1 - 2020-05-21
+-------------------
+
+Fix :func:`~hypothesis.strategies.from_type` with generic types under Python 3.9.
+
+.. _v5.15.0:
+
+-------------------
+5.15.0 - 2020-05-19
+-------------------
+
+This patch fixes an error that happens when multiple threads create new strategies.
+
 .. _v5.14.0:
 
 -------------------
