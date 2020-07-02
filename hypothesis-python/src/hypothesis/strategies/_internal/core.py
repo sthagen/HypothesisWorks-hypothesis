@@ -48,6 +48,7 @@ from uuid import UUID
 
 import attr
 
+from hypothesis._settings import note_deprecation
 from hypothesis.control import cleanup, note, reject
 from hypothesis.errors import InvalidArgument, ResolutionFailed
 from hypothesis.internal.cache import LRUReusedCache
@@ -119,7 +120,6 @@ from hypothesis.strategies._internal.strings import (
     OneCharStringStrategy,
     StringStrategy,
 )
-from hypothesis.types import RandomWithSeed
 from hypothesis.utils.conventions import InferType, infer, not_set
 
 K = TypeVar("K")
@@ -902,8 +902,8 @@ def dictionaries(
     check_valid_sizes(min_size, max_size)
     if max_size == 0:
         return fixed_dictionaries(dict_class())
-    check_strategy(keys)
-    check_strategy(values)
+    check_strategy(keys, "keys")
+    check_strategy(values, "values")
 
     return lists(
         tuples(keys, values),
@@ -1139,13 +1139,38 @@ def binary(*, min_size: int = 0, max_size: int = None) -> SearchStrategy[bytes]:
 
 @cacheable
 @defines_strategy
-def randoms() -> SearchStrategy[random.Random]:
-    """Generates instances of ``random.Random``, tweaked to show the seed value
-    in the repr for reproducibility.
+def randoms(
+    *, note_method_calls: bool = False, use_true_random: bool = None
+) -> SearchStrategy[random.Random]:
+    """Generates instances of ``random.Random``. The generated Random instances
+    are of a special HypothesisRandom subclass.
 
-    Examples from this strategy shrink to seeds closer to zero.
+    - If ``note_method_calls`` is set to ``True``, Hypothesis will print the
+      randomly drawn values in any falsifying test case. This can be helpful
+      for debugging the behaviour of randomized algorithms.
+    - If ``use_true_random`` is set to ``True`` then values will be drawn from
+      their usual distribution, otherwise they will actually be Hypothesis
+      generated values (and will be shrunk accordingly for any failing test
+      case). Setting ``use_true_random=False`` will tend to expose bugs that
+      would occur with very low probability when it is set to True, and this
+      flag should only be set to True when your code relies on the distribution
+      of values for correctness.
     """
-    return integers().map(RandomWithSeed)
+    if use_true_random is None:
+        note_deprecation(
+            """Defaulting to old behaviour of use_true_random=True. If you want
+            to keep that behaviour, set use_true_random=True explicitly. If you
+            want the new behaviour (which will become the default in future),
+            set use_true_random=False.""",
+            since="2020-06-30",
+        )
+        use_true_random = True
+
+    from hypothesis.strategies._internal.random import RandomStrategy
+
+    return RandomStrategy(
+        use_true_random=use_true_random, note_method_calls=note_method_calls
+    )
 
 
 class RandomSeeder:
@@ -1343,9 +1368,15 @@ def from_type(thing: Type[Ex]) -> SearchStrategy[Ex]:
 
 
 def _from_type(thing: Type[Ex]) -> SearchStrategy[Ex]:
+    # TODO: We would like to move this to the top level, but pending some major
+    # refactoring it's hard to do without creating circular imports.
+    from hypothesis.strategies._internal import types
+
     if (
         hasattr(typing, "_TypedDictMeta")
         and type(thing) is typing._TypedDictMeta  # type: ignore
+        or hasattr(types.typing_extensions, "_TypedDictMeta")
+        and type(thing) is types.typing_extensions._TypedDictMeta  # type: ignore
     ):  # pragma: no cover
         # The __optional_keys__ attribute may or may not be present, but if there's no
         # way to tell and we just have to assume that everything is required.
@@ -1356,10 +1387,6 @@ def _from_type(thing: Type[Ex]) -> SearchStrategy[Ex]:
             mapping={k: v for k, v in anns.items() if k not in optional},
             optional={k: v for k, v in anns.items() if k in optional},
         )
-
-    # TODO: We would like to move this to the top level, but pending some major
-    # refactoring it's hard to do without creating circular imports.
-    from hypothesis.strategies._internal import types
 
     def as_strategy(strat_or_callable, thing, final=True):
         # User-provided strategies need some validation, and callables even more
@@ -1495,7 +1522,7 @@ def fractions(
     assert max_value is None or isinstance(max_value, Fraction)
 
     check_valid_interval(min_value, max_value, "min_value", "max_value")
-    check_valid_integer(max_denominator)
+    check_valid_integer(max_denominator, "max_denominator")
 
     if max_denominator is not None:
         if max_denominator < 1:
@@ -1607,7 +1634,7 @@ def decimals(
     try to maximize human readability when shrinking.
     """
     # Convert min_value and max_value to Decimal values, and validate args
-    check_valid_integer(places)
+    check_valid_integer(places, "places")
     if places is not None and places < 0:
         raise InvalidArgument("places=%r may not be negative" % places)
     min_value = _as_finite_decimal(min_value, "min_value", allow_infinity)
@@ -1910,9 +1937,9 @@ def uuids(*, version: int = None) -> SearchStrategy[UUID]:
             )
             % (version,)
         )
-    return shared(randoms(), key="hypothesis.strategies.uuids.generator").map(
-        lambda r: UUID(version=version, int=r.getrandbits(128))
-    )
+    return shared(
+        randoms(use_true_random=True), key="hypothesis.strategies.uuids.generator"
+    ).map(lambda r: UUID(version=version, int=r.getrandbits(128)))
 
 
 class RunnerStrategy(SearchStrategy):
@@ -1964,7 +1991,7 @@ class DataObject:
         return "data(...)"
 
     def draw(self, strategy: SearchStrategy[Ex], label: Any = None) -> Ex:
-        check_type(SearchStrategy, strategy, "strategy")
+        check_strategy(strategy, "strategy")
         result = self.conjecture_data.draw(strategy)
         self.count += 1
         if label is not None:
@@ -2138,7 +2165,7 @@ def functions(
         hints = get_type_hints(like)
         returns = from_type(hints.get("return", type(None)))
 
-    check_type(SearchStrategy, returns)
+    check_strategy(returns, "returns")
     return FunctionStrategy(like, returns)
 
 
@@ -2152,7 +2179,7 @@ def slices(draw: Any, size: int) -> slice:
 
     Examples from this strategy shrink toward 0 and smaller values
     """
-    check_valid_integer(size)
+    check_valid_integer(size, "size")
     if size is None or size < 1:
         raise InvalidArgument("size=%r must be at least one" % size)
 

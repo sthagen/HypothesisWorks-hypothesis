@@ -10,6 +10,104 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.19.0:
+
+-------------------
+5.19.0 - 2020-06-30
+-------------------
+
+This release improves the :func:`~hypothesis.strategies.randoms` strategy by adding support
+for ``Random`` instances where Hypothesis generates the random values
+rather than having them be "truly" random.
+
+.. _v5.18.3:
+
+-------------------
+5.18.3 - 2020-06-27
+-------------------
+
+This patch adds some internal functions to support a new feature
+we're working on.  There is no user-visible change... yet.
+
+.. _v5.18.2:
+
+-------------------
+5.18.2 - 2020-06-26
+-------------------
+
+This patch improves our docs for the :obj:`~hypothesis.settings.derandomize` setting.
+
+.. _v5.18.1:
+
+-------------------
+5.18.1 - 2020-06-25
+-------------------
+
+This release consists of some internal refactoring to the shrinker in preparation for future work. It has no user visible impact.
+
+.. _v5.18.0:
+
+-------------------
+5.18.0 - 2020-06-22
+-------------------
+
+This release teaches Hypothesis to :ref:`shorten tracebacks <v3.79.2>` for
+:ref:`explicit examples <providing-explicit-examples>`, as we already do
+for generated examples, so that you can focus on your code rather than ours.
+
+If you have multiple failing explicit examples, they will now all be reported.
+To report only the first failure, you can use the :obj:`report_multiple_bugs=False
+<hypothesis.settings.report_multiple_bugs>` setting as for generated examples.
+
+.. _v5.17.0:
+
+-------------------
+5.17.0 - 2020-06-22
+-------------------
+
+This patch adds strategy inference for the ``Literal``, ``NewType``, ``Type``,
+``DefaultDict``, and ``TypedDict`` types from the :pypi:`typing_extensions`
+backport on PyPI.
+
+.. _v5.16.3:
+
+-------------------
+5.16.3 - 2020-06-21
+-------------------
+
+This patch precomputes some of the setup logic for our experimental
+:ref:`external fuzzer integration <fuzz_one_input>` and sets
+:obj:`deadline=None <hypothesis.settings.deadline>` in fuzzing mode,
+saving around 150us on each iteration.
+
+This is around two-thirds the runtime to fuzz an empty test with
+``@given(st.none())``, and nice to have even as a much smaller
+fraction of the runtime for non-trivial tests.
+
+.. _v5.16.2:
+
+-------------------
+5.16.2 - 2020-06-19
+-------------------
+
+This patch fixes an internal error when warning about the use of function-scoped fixtures
+for parametrised tests where the parametrised value contained a ``%`` character.
+Thanks to Bryant for reporting and fixing this bug!
+
+.. _v5.16.1:
+
+-------------------
+5.16.1 - 2020-06-10
+-------------------
+
+If you pass a :class:`python:list` or :class:`python:tuple` where a
+strategy was expected, the error message now mentions
+:func:`~hypothesis.strategies.sampled_from` as an example strategy.
+
+Thanks to the enthusiastic participants in the `PyCon Mentored Sprints
+<https://us.pycon.org/2020/hatchery/mentoredsprints/>`__ who suggested
+adding this hint.
+
 .. _v5.16.0:
 
 -------------------
