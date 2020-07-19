@@ -19,14 +19,13 @@ from typing import Any, NamedTuple, Sequence, Tuple, Union
 
 import numpy as np
 
-import hypothesis.internal.conjecture.utils as cu
-import hypothesis.strategies._internal.core as st
 from hypothesis import assume
 from hypothesis.errors import InvalidArgument
+from hypothesis.internal.conjecture import utils as cu
 from hypothesis.internal.coverage import check_function
 from hypothesis.internal.reflection import deprecated_posargs, proxies
 from hypothesis.internal.validation import check_type, check_valid_interval
-from hypothesis.strategies._internal import SearchStrategy, check_strategy
+from hypothesis.strategies._internal import SearchStrategy, check_strategy, core as st
 from hypothesis.strategies._internal.strategies import T
 from hypothesis.utils.conventions import UniqueIdentifier, not_set
 
@@ -1312,6 +1311,9 @@ class BasicIndexStrategy(SearchStrategy):
         else:
             while result[-1:] == [slice(None, None)] and data.draw(st.integers(0, 7)):
                 result.pop()
+        if len(result) == 1 and data.draw(st.booleans()):
+            # Sometimes generate bare element equivalent to a length-one tuple
+            return result[0]
         return tuple(result)
 
 
@@ -1332,6 +1334,8 @@ def basic_indices(
     It generates tuples containing some mix of integers, :obj:`python:slice` objects,
     ``...`` (Ellipsis), and :obj:`numpy:numpy.newaxis`; which when used to index a
     ``shape``-shaped array will produce either a scalar or a shared-memory view.
+    When a length-one tuple would be generated, this strategy may instead return
+    the element which will index the first axis, e.g. ``5`` instead of ``(5,)``.
 
     * ``shape``: the array shape that will be indexed, as a tuple of integers >= 0.
       This must be at least two-dimensional for a tuple to be a valid basic index;

@@ -10,6 +10,68 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.20.2:
+
+-------------------
+5.20.2 - 2020-07-18
+-------------------
+
+This release fixes a small caching bug in Hypothesis internals that may under
+some circumstances have resulted in a less diverse set of test cases being
+generated than was intended.
+
+Fixing this problem revealed some performance problems that could occur during targeted property based testing, so this release also fixes those. Targeted property-based testing should now be significantly faster in some cases,
+but this may be at the cost of reduced effectiveness.
+
+.. _v5.20.1:
+
+-------------------
+5.20.1 - 2020-07-17
+-------------------
+
+This patch updates our formatting to use :pypi:`isort` 5.
+There is no user-visible change.
+
+.. _v5.20.0:
+
+-------------------
+5.20.0 - 2020-07-17
+-------------------
+
+The :func:`~hypothesis.extra.numpy.basic_indices` strategy can now generate
+bare indexers in place of length-one tuples. Thanks to Andrea for this patch!
+
+.. _v5.19.3:
+
+-------------------
+5.19.3 - 2020-07-15
+-------------------
+
+This patch removes an internal use of ``distutils`` in order to avoid
+`this setuptools warning <https://github.com/pypa/setuptools/issues/2261>`__
+for some users.
+
+.. _v5.19.2:
+
+-------------------
+5.19.2 - 2020-07-13
+-------------------
+
+This patch contains a small internal refactoring with no user-visible impact.
+
+Thanks to Andrea for writing this at
+`the SciPy 2020 Sprints <https://www.scipy2020.scipy.org/sprints-schedule>`__!
+
+.. _v5.19.1:
+
+-------------------
+5.19.1 - 2020-07-12
+-------------------
+
+This release slightly improves shrinking behaviour. This should mainly only
+impact stateful tests, but may have some minor positive impact on shrinking
+collections (lists, sets, etc).
+
 .. _v5.19.0:
 
 -------------------
