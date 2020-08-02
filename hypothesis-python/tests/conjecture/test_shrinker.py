@@ -13,12 +13,19 @@
 #
 # END HEADER
 
+import time
+
 import pytest
 
 from hypothesis.internal.compat import int_to_bytes
 from hypothesis.internal.conjecture import floats as flt
 from hypothesis.internal.conjecture.engine import ConjectureRunner
-from hypothesis.internal.conjecture.shrinker import Shrinker, block_program
+from hypothesis.internal.conjecture.shrinker import (
+    Shrinker,
+    ShrinkPass,
+    StopShrinking,
+    block_program,
+)
 from hypothesis.internal.conjecture.shrinking import Float
 from hypothesis.internal.conjecture.utils import Sampler
 from tests.conjecture.common import SOME_LABEL, run_to_buffer, shrinking_from
@@ -559,3 +566,53 @@ def test_zero_coverage_edge_case():
     shrinker.fixate_shrink_passes(["zero_examples"])
 
     assert list(shrinker.buffer) == [255] + [0] * (len(shrinker.buffer) - 1)
+
+
+def test_shrink_pass_method_is_idempotent():
+    @shrinking_from([255])
+    def shrinker(data):
+        data.draw_bits(8)
+        data.mark_interesting()
+
+    sp = shrinker.shrink_pass("adaptive_example_deletion")
+    assert isinstance(sp, ShrinkPass)
+    assert shrinker.shrink_pass(sp) is sp
+
+
+def test_will_terminate_stalled_shrinks():
+    # Suppress the time based slow shrinking check - we only want
+    # the one that checks if we're in a stall where we've shrunk
+    # as far as we're going to get.
+    time.freeze()
+
+    @shrinking_from([255] * 100)
+    def shrinker(data):
+        count = 0
+
+        for _ in range(100):
+            if data.draw_bits(8) != 255:
+                count += 1
+                if count >= 10:
+                    return
+        data.mark_interesting()
+
+    shrinker.shrink()
+    assert shrinker.calls <= 1 + 2 * shrinker.max_stall
+
+
+def test_will_let_fixate_shrink_passes_do_a_full_run_through():
+    @shrinking_from(range(50))
+    def shrinker(data):
+        for i in range(50):
+            if data.draw_bits(8) != i:
+                data.mark_invalid()
+        data.mark_interesting()
+
+    shrinker.max_stall = 5
+
+    passes = [block_program("X" * i) for i in range(1, 11)]
+
+    with pytest.raises(StopShrinking):
+        shrinker.fixate_shrink_passes(passes)
+
+    assert shrinker.shrink_pass(passes[-1]).calls > 0

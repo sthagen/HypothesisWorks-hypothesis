@@ -13,5 +13,11 @@
 #
 # END HEADER
 
-__version_info__ = (5, 23, 8)
-__version__ = ".".join(map(str, __version_info__))
+from hypothesis.strategies._internal.strings import OneCharStringStrategy
+
+
+def test_rewriting_integers_covers_right_range():
+    strategy = OneCharStringStrategy()
+
+    rewritten = [strategy.rewrite_integer(i) for i in range(256)]
+    assert sorted(rewritten) == sorted(range(256))

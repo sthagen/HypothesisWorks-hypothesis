@@ -18,16 +18,23 @@ from collections import defaultdict
 import attr
 
 from hypothesis.internal.compat import int_from_bytes, int_to_bytes
-from hypothesis.internal.conjecture.choicetree import ChoiceTree, prefix_selection_order
+from hypothesis.internal.conjecture.choicetree import (
+    ChoiceTree,
+    prefix_selection_order,
+    random_selection_order,
+)
 from hypothesis.internal.conjecture.data import ConjectureResult, Overrun, Status
 from hypothesis.internal.conjecture.floats import (
     DRAW_FLOAT_LABEL,
     float_to_lex,
     lex_to_float,
 )
-from hypothesis.internal.conjecture.junkdrawer import binary_search, replace_all
+from hypothesis.internal.conjecture.junkdrawer import (
+    binary_search,
+    find_integer,
+    replace_all,
+)
 from hypothesis.internal.conjecture.shrinking import Float, Integer, Lexical, Ordering
-from hypothesis.internal.conjecture.shrinking.common import find_integer
 
 if False:
     from typing import Dict  # noqa
@@ -282,7 +289,13 @@ class Shrinker:
         self.update_shrink_target(initial)
         self.shrinks = 0
 
+        # We terminate shrinks that seem to have reached their logical
+        # conclusion: If we've called the underlying test function at
+        # least self.max_stall times since the last time we shrunk,
+        # it's time to stop shrinking.
+        self.max_stall = 200
         self.initial_calls = self.engine.call_count
+        self.calls_at_last_shrink = self.initial_calls
 
         self.passes_by_name = {}
         self.passes = []
@@ -300,12 +313,6 @@ class Shrinker:
                 return self.cached_calculations.setdefault(cache_key, f())
 
         return accept
-
-    def explain_next_call_as(self, explanation):
-        self.__pending_shrink_explanation = explanation
-
-    def clear_call_explanation(self):
-        self.__pending_shrink_explanation = None
 
     def add_new_pass(self, run):
         """Creates a shrink pass corresponding to calling ``run(self)``"""
@@ -381,13 +388,11 @@ class Shrinker:
         too short to be a valid test case) or a ConjectureData object
         with status >= INVALID that would result from running this buffer."""
 
-        if self.__pending_shrink_explanation is not None:
-            self.debug(self.__pending_shrink_explanation)
-            self.__pending_shrink_explanation = None
-
         buffer = bytes(buffer)
         result = self.engine.cached_test_function(buffer)
         self.incorporate_test_data(result)
+        if self.calls - self.calls_at_last_shrink >= self.max_stall:
+            raise StopShrinking()
         return result
 
     def debug(self, msg):
@@ -418,6 +423,8 @@ class Shrinker:
 
         try:
             self.greedy_shrink()
+        except StopShrinking:
+            pass
         finally:
             if self.engine.report_debug_info:
 
@@ -500,6 +507,7 @@ class Shrinker:
                 block_program("-XX"),
                 "minimize_individual_blocks",
                 block_program("--X"),
+                "redistribute_block_pairs",
             ]
         )
 
@@ -516,7 +524,9 @@ class Shrinker:
         while any_ran:
             any_ran = False
 
-            # We run remove_discarded after every step to do cleanup
+            reordering = {}
+
+            # We run remove_discarded after every pass to do cleanup
             # keeping track of whether that actually works. Either there is
             # no discarded data and it is basically free, or it reliably works
             # and deletes data, or it doesn't work. In that latter case we turn
@@ -524,51 +534,82 @@ class Shrinker:
             # try again once all of the passes have been run.
             can_discard = self.remove_discarded()
 
-            successful_passes = set()
+            calls_at_loop_start = self.calls
+
+            # We keep track of how many calls can be made by a single step
+            # without making progress and use this to test how much to pad
+            # out self.max_stall by as we go along.
+            max_calls_per_failing_step = 1
 
             for sp in passes:
-                # We run each pass until it has failed a certain number
-                # of times, where a "failure" is any step where it made
-                # at least one call and did not result in a shrink.
-                # This gives passes which work reasonably often more of
-                # chance to run.
+                if can_discard:
+                    can_discard = self.remove_discarded()
+
+                before_sp = self.shrink_target
+
+                # Run the shrink pass until it fails to make any progress
+                # max_failures times in a row. This implicitly boosts shrink
+                # passes that are more likely to work.
                 failures = 0
-                successes = 0
-
-                # The choice of 3 is fairly arbitrary and was hand tuned
-                # to some particular examples. It is very unlikely that
-                # is the best choice in general, but it's not an
-                # unreasonable choice: Making it smaller than this would
-                # give too high a chance of an otherwise very worthwhile
-                # pass getting screened out too early if it got unlucky,
-                # and making it much larger than this would result in us
-                # spending too much time on bad passes.
-                max_failures = 3
-
+                max_failures = 20
                 while failures < max_failures:
-                    prev_calls = self.calls
-                    prev = self.shrink_target
-                    if sp.step():
-                        any_ran = True
-                    else:
-                        break
-                    if prev_calls != self.calls:
-                        if can_discard:
-                            can_discard = self.remove_discarded()
-                        if prev is self.shrink_target:
-                            failures += 1
-                        else:
-                            successes += 1
-                if successes > 0:
-                    successful_passes.add(sp)
+                    # We don't allow more than max_stall consecutive failures
+                    # to shrink, but this means that if we're unlucky and the
+                    # shrink passes are in a bad order where only the ones at
+                    # the end are useful, if we're not careful this heuristic
+                    # might stop us before we've tried everything. In order to
+                    # avoid that happening, we make sure that there's always
+                    # plenty of breathing room to make it through a single
+                    # iteration of the fixate_shrink_passes loop.
+                    self.max_stall = max(
+                        self.max_stall,
+                        2 * max_calls_per_failing_step
+                        + (self.calls - calls_at_loop_start),
+                    )
 
-            # If only some of our shrink passes are doing anything useful
-            # then run all of those to a fixed point before running the
-            # full set. This is particularly important when an emergency
-            # shrink pass unlocks some non-emergency ones and it suddenly
-            # becomes very expensive to find a bunch of small changes.
-            if 0 < len(successful_passes) < len(passes):
-                self.fixate_shrink_passes(successful_passes)
+                    prev = self.shrink_target
+                    initial_calls = self.calls
+                    # It's better for us to run shrink passes in a deterministic
+                    # order, to avoid repeat work, but this can cause us to create
+                    # long stalls when there are a lot of steps which fail to do
+                    # anything useful. In order to avoid this, once we've noticed
+                    # we're in a stall (i.e. half of max_failures calls have failed
+                    # to do anything) we switch to randomly jumping around. If we
+                    # find a success then we'll resume deterministic order from
+                    # there which, with any luck, is in a new good region.
+                    if not sp.step(random_order=failures >= max_failures // 2):
+                        # step returns False when there is nothing to do because
+                        # the entire choice tree is exhausted. If this happens
+                        # we break because we literally can't run this pass any
+                        # more than we already have until something else makes
+                        # progress.
+                        break
+                    any_ran = True
+
+                    # Don't count steps that didn't actually try to do
+                    # anything as failures. Otherwise, this call is a failure
+                    # if it failed to make any changes to the shrink target.
+                    if initial_calls != self.calls:
+                        if prev is not self.shrink_target:
+                            failures = 0
+                        else:
+                            max_calls_per_failing_step = max(
+                                max_calls_per_failing_step, self.calls - initial_calls
+                            )
+                            failures += 1
+
+                # We reorder the shrink passes so that on our next run through
+                # we try good ones first. The rule is that shrink passes that
+                # did nothing useful are the worst, shrink passes that reduced
+                # the length are the best.
+                if self.shrink_target is before_sp:
+                    reordering[sp] = 1
+                elif len(self.buffer) < len(before_sp.buffer):
+                    reordering[sp] = -1
+                else:
+                    reordering[sp] = 0
+
+            passes.sort(key=reordering.__getitem__)
 
     @property
     def buffer(self):
@@ -779,6 +820,16 @@ class Shrinker:
         assert isinstance(new_target, ConjectureResult)
         if self.shrink_target is not None:
             self.shrinks += 1
+            # If we are just taking a long time to shrink we don't want to
+            # trigger this heuristic, so whenever we shrink successfully
+            # we give ourselves a bit of breathing room to make sure we
+            # would find a shrink that took that long to find the next time.
+            # The case where we're taking a long time but making steady
+            # progress is handled by `finish_shrinking_deadline` in engine.py
+            self.max_stall = max(
+                self.max_stall, (self.calls - self.calls_at_last_shrink) * 2
+            )
+            self.calls_at_last_shrink = self.calls
         else:
             self.__all_changed_blocks = set()
             self.__last_checked_changed_at = new_target
@@ -1145,6 +1196,41 @@ class Shrinker:
             )
 
     @defines_shrink_pass()
+    def redistribute_block_pairs(self, chooser):
+        """If there is a sum of generated integers that we need their sum
+        to exceed some bound, lowering one of them requires raising the
+        other. This pass enables that."""
+
+        block = chooser.choose(self.blocks, lambda b: not b.all_zero)
+
+        for j in range(block.index + 1, len(self.blocks)):
+            next_block = self.blocks[j]
+            if next_block.length == block.length:
+                break
+        else:
+            return
+
+        buffer = self.buffer
+
+        m = int_from_bytes(buffer[block.start : block.end])
+        n = int_from_bytes(buffer[next_block.start : next_block.end])
+
+        def boost(k):
+            if k > m:
+                return False
+            attempt = bytearray(buffer)
+            attempt[block.start : block.end] = int_to_bytes(m - k, block.length)
+            try:
+                attempt[next_block.start : next_block.end] = int_to_bytes(
+                    n + k, block.length
+                )
+            except OverflowError:
+                return False
+            return self.consider_new_buffer(attempt)
+
+        find_integer(boost)
+
+    @defines_shrink_pass()
     def minimize_individual_blocks(self, chooser):
         """Attempt to minimize each block in sequence.
 
@@ -1454,7 +1540,7 @@ class ShrinkPass:
     shrinks = attr.ib(default=0)
     deletions = attr.ib(default=0)
 
-    def step(self):
+    def step(self, random_order=False):
         tree = self.shrinker.shrink_pass_choice_trees[self]
         if tree.exhausted:
             return False
@@ -1462,17 +1548,23 @@ class ShrinkPass:
         initial_shrinks = self.shrinker.shrinks
         initial_calls = self.shrinker.calls
         size = len(self.shrinker.shrink_target.buffer)
-        self.shrinker.explain_next_call_as(self.name)
+        self.shrinker.engine.explain_next_call_as(self.name)
+
+        if random_order:
+            selection_order = random_selection_order(self.shrinker.random)
+        else:
+            selection_order = prefix_selection_order(self.last_prefix)
+
         try:
             self.last_prefix = tree.step(
-                prefix_selection_order(self.last_prefix),
+                selection_order,
                 lambda chooser: self.run_with_chooser(self.shrinker, chooser),
             )
         finally:
             self.calls += self.shrinker.calls - initial_calls
             self.shrinks += self.shrinker.shrinks - initial_shrinks
             self.deletions += size - len(self.shrinker.shrink_target.buffer)
-            self.shrinker.clear_call_explanation()
+            self.shrinker.engine.clear_call_explanation()
         return True
 
     @property
@@ -1496,3 +1588,7 @@ def expand_region(f, a, b):
     b += find_integer(lambda k: f(a, b + k))
     a -= find_integer(lambda k: f(a - k, b))
     return (a, b)
+
+
+class StopShrinking(Exception):
+    pass

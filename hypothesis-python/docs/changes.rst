@@ -10,6 +10,129 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.23.8:
+
+-------------------
+5.23.8 - 2020-07-31
+-------------------
+
+This release adds a heuristic to detect when shrinking has finished despite the fact
+that there are many more possible transformations to try. This will be particularly
+useful for tests where the minimum failing test case is very large despite there being
+many smaller test cases possible, where it is likely to speed up shrinking dramatically.
+
+In some cases it is likely that this will result in worse shrunk test cases. In those
+cases rerunning the test will result in further shrinking.
+
+.. _v5.23.7:
+
+-------------------
+5.23.7 - 2020-07-29
+-------------------
+
+This release makes some performance improvements to shrinking. They should
+only be noticeable for tests that are currently particularly slow to shrink.
+
+.. _v5.23.6:
+
+-------------------
+5.23.6 - 2020-07-29
+-------------------
+
+This patch adds some more internal functions to support a new
+feature we're working on, like :ref:`version 5.18.3 <v5.18.3>`.
+There is still no user-visible change... yet.
+
+.. _v5.23.5:
+
+-------------------
+5.23.5 - 2020-07-29
+-------------------
+
+This release makes some changes to internal support code that is not currently used in production Hypothesis.
+It has no user visible effect at present.
+
+.. _v5.23.4:
+
+-------------------
+5.23.4 - 2020-07-29
+-------------------
+
+This release improves shrinking quality in some special cases.
+
+.. _v5.23.3:
+
+-------------------
+5.23.3 - 2020-07-27
+-------------------
+
+This release fixes :issue:`2507`, where lazy evaluation meant that the
+values drawn from a :func:`~hypothesis.strategies.sampled_from` strategy
+could depend on mutations of the sampled sequence that happened after
+the strategy was constructed.
+
+.. _v5.23.2:
+
+-------------------
+5.23.2 - 2020-07-27
+-------------------
+
+This patch fixes :issue:`2462`, a bug in our handling of :meth:`unittest.TestCase.subTest`.
+Thanks to Israel Fruchter for fixing this at the EuroPython sprints!
+
+.. _v5.23.1:
+
+-------------------
+5.23.1 - 2020-07-26
+-------------------
+
+This release improves the behaviour of the :func:`~hypothesis.strategies.characters` strategy
+when shrinking, by changing which characters are considered smallest to prefer more "normal" ascii characters
+where available.
+
+.. _v5.23.0:
+
+-------------------
+5.23.0 - 2020-07-26
+-------------------
+
+The default ``print_blob`` setting is now smarter. It defaults to ``True`` in CI and
+``False`` for local development.
+
+Thanks to Hugo van Kemenade for implementing this feature at the EuroPython sprints!
+
+.. _v5.22.0:
+
+-------------------
+5.22.0 - 2020-07-25
+-------------------
+
+The :func:`~hypothesis.strategies.slices` strategy can now generate slices for empty sequences,
+slices with negative start and stop indices (from the end of the sequence),
+and ``step=None`` in place of ``step=1``.
+
+Thanks to Sangarshanan for implementing this feature at the EuroPython sprints!
+
+.. _v5.21.0:
+
+-------------------
+5.21.0 - 2020-07-23
+-------------------
+
+This release ensures that tests which raise ``RecursionError`` are not
+reported as flaky simply because we run them from different initial
+stack depths (:issue:`2494`).
+
+.. _v5.20.4:
+
+-------------------
+5.20.4 - 2020-07-23
+-------------------
+
+This release improves the performance of the ``sample`` method on objects obtained from :func:`~hypothesis.strategies.randoms`
+when ``use_true_random=False``. This should mostly only be noticeable when the sample size is a large fraction of the population size,
+but may also help avoid health check failures in some other cases.
+
 .. _v5.20.3:
 
 -------------------

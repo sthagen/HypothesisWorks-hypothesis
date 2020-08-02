@@ -118,7 +118,6 @@ from hypothesis.strategies._internal.strategies import (
 from hypothesis.strategies._internal.strings import (
     FixedSizeBytes,
     OneCharStringStrategy,
-    StringStrategy,
 )
 from hypothesis.utils.conventions import InferType, infer, not_set
 
@@ -191,12 +190,18 @@ def cacheable(fn: T) -> T:
     return cached_strategy
 
 
-def base_defines_strategy(force_reusable: bool) -> Callable[[T], T]:
+def base_defines_strategy(
+    force_reusable: bool, *, try_non_lazy: bool = False
+) -> Callable[[T], T]:
     """Returns a decorator for strategy functions.
 
     If force_reusable is True, the generated values are assumed to be
     reusable, i.e. immutable and safe to cache, across multiple test
     invocations.
+
+    If try_non_lazy is True, attempt to execute the strategy definition
+    function immediately, so that a LazyStrategy is only returned if this
+    raises an exception.
     """
 
     def decorator(strategy_definition):
@@ -206,6 +211,16 @@ def base_defines_strategy(force_reusable: bool) -> Callable[[T], T]:
 
         @proxies(strategy_definition)
         def accept(*args, **kwargs):
+            if try_non_lazy:
+                # Why not try this unconditionally?  Because we'd end up with very
+                # deep nesting of recursive strategies - better to be lazy unless we
+                # *know* that eager evaluation is the right choice.
+                try:
+                    return strategy_definition(*args, **kwargs)
+                except Exception:
+                    # If invoking the strategy definition raises an exception,
+                    # wrap that up in a LazyStrategy so it happens again later.
+                    pass
             result = LazyStrategy(strategy_definition, args, kwargs)
             if force_reusable:
                 result.force_has_reusable_values = True
@@ -220,6 +235,7 @@ def base_defines_strategy(force_reusable: bool) -> Callable[[T], T]:
 
 defines_strategy = base_defines_strategy(False)
 defines_strategy_with_reusable_values = base_defines_strategy(True)
+defines_strategy_without_laziness = base_defines_strategy(False, try_non_lazy=True)
 
 
 class Nothing(SearchStrategy):
@@ -395,7 +411,7 @@ def booleans() -> SearchStrategy[bool]:
     Examples from this strategy will shrink towards ``False`` (i.e.
     shrinking will replace ``True`` with ``False`` where possible).
     """
-    return sampled_from([False, True])
+    return SampledFromStrategy([False, True], repr_="booleans()")
 
 
 @cacheable
@@ -644,7 +660,7 @@ def sampled_from(elements: Type[enum.Enum]) -> SearchStrategy[Any]:
     pass  # pragma: no cover
 
 
-@defines_strategy  # noqa: F811
+@defines_strategy_without_laziness  # noqa: F811
 def sampled_from(elements):
     """Returns a strategy which generates any value present in ``elements``.
 
@@ -665,13 +681,19 @@ def sampled_from(elements):
         raise InvalidArgument("Cannot sample from a length-zero sequence.")
     if len(values) == 1:
         return just(values[0])
+    if isinstance(elements, type) and issubclass(elements, enum.Enum):
+        repr_ = "sampled_from(%s.%s)" % (elements.__module__, elements.__name__)
+    else:
+        repr_ = "sampled_from(%r)" % (elements,)
     if hasattr(enum, "Flag") and isclass(elements) and issubclass(elements, enum.Flag):
         # Combinations of enum.Flag members are also members.  We generate
         # these dynamically, because static allocation takes O(2^n) memory.
-        return sets(sampled_from(values), min_size=1).map(
+        # LazyStrategy is used for the ease of force_repr.
+        inner = sets(sampled_from(list(values)), min_size=1).map(
             lambda s: reduce(operator.or_, s)
         )
-    return SampledFromStrategy(elements)
+        return LazyStrategy(lambda: inner, args=[], kwargs={}, force_repr=repr_)
+    return SampledFromStrategy(values, repr_)
 
 
 @cacheable
@@ -1073,7 +1095,7 @@ def text(
         )
     if (max_size == 0 or char_strategy.is_empty) and not min_size:
         return just("")
-    return StringStrategy(lists(char_strategy, min_size=min_size, max_size=max_size))
+    return lists(char_strategy, min_size=min_size, max_size=max_size).map("".join)
 
 
 @cacheable
@@ -2173,15 +2195,16 @@ def functions(
 def slices(draw: Any, size: int) -> slice:
     """Generates slices that will select indices up to the supplied size
 
-    Generated slices will have start and stop indices that range from 0 to size - 1
+    Generated slices will have start and stop indices that range from -size to size - 1
     and will step in the appropriate direction. Slices should only produce an empty selection
     if the start and end are the same.
 
     Examples from this strategy shrink toward 0 and smaller values
     """
-    check_valid_integer(size, "size")
-    if size is None or size < 1:
-        raise InvalidArgument("size=%r must be at least one" % size)
+    check_valid_size(size, "size")
+    if size == 0:
+        step = draw(none() | integers().filter(bool))
+        return slice(None, None, step)
 
     min_start = min_stop = 0
     max_start = max_stop = size
@@ -2204,5 +2227,10 @@ def slices(draw: Any, size: int) -> slice:
 
     if (stop or 0) < (start or 0):
         step *= -1
+
+    if draw(booleans()) and start is not None:
+        start -= size
+    if draw(booleans()) and stop is not None:
+        stop -= size
 
     return slice(start, stop, step)

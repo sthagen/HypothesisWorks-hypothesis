@@ -187,7 +187,6 @@ def test_minimize_multiple_elements_in_silly_large_int_range_min_is_not_dupe():
     assert x == target
 
 
-@pytest.mark.skip  # See https://github.com/HypothesisWorks/hypothesis/issues/2497
 def test_find_large_union_list():
     size = 10
 
@@ -332,3 +331,9 @@ def test_lists_forced_near_top(n):
     assert minimal(
         lists(integers(), min_size=n, max_size=n + 2), lambda t: len(t) == n + 2
     ) == [0] * (n + 2)
+
+
+def test_sum_of_pair():
+    assert minimal(
+        tuples(integers(0, 1000), integers(0, 1000)), lambda x: sum(x) > 1000
+    ) == (1, 1000)

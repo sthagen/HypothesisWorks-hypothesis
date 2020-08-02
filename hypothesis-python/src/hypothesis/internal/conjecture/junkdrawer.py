@@ -18,6 +18,7 @@ obviously belong anywhere else. If you spot a better home for
 anything that lives here, please move it."""
 
 import array
+import sys
 
 
 def array_or_list(code, contents):
@@ -93,6 +94,9 @@ class IntList:
 
     def __delitem__(self, i):
         del self.__underlying[i]
+
+    def insert(self, i, v):
+        self.__underlying.insert(i, v)
 
     def __iter__(self):
         return iter(self.__underlying)
@@ -216,3 +220,65 @@ def swap(ls, i, j):
     if i == j:
         return
     ls[i], ls[j] = ls[j], ls[i]
+
+
+def stack_depth_of_caller():
+    """Get stack size for caller's frame.
+
+    From https://stackoverflow.com/a/47956089/9297601 , this is a simple
+    but much faster alternative to `len(inspect.stack(0))`.  We use it
+    with get/set recursionlimit to make stack overflows non-flaky; see
+    https://github.com/HypothesisWorks/hypothesis/issues/2494 for details.
+    """
+    frame = sys._getframe(2)
+    size = 1
+    while frame:
+        frame = frame.f_back
+        size += 1
+    return size
+
+
+def find_integer(f):
+    """Finds a (hopefully large) integer such that f(n) is True and f(n + 1) is
+    False.
+
+    f(0) is assumed to be True and will not be checked.
+    """
+    # We first do a linear scan over the small numbers and only start to do
+    # anything intelligent if f(4) is true. This is because it's very hard to
+    # win big when the result is small. If the result is 0 and we try 2 first
+    # then we've done twice as much work as we needed to!
+    for i in range(1, 5):
+        if not f(i):
+            return i - 1
+
+    # We now know that f(4) is true. We want to find some number for which
+    # f(n) is *not* true.
+    # lo is the largest number for which we know that f(lo) is true.
+    lo = 4
+
+    # Exponential probe upwards until we find some value hi such that f(hi)
+    # is not true. Subsequently we maintain the invariant that hi is the
+    # smallest number for which we know that f(hi) is not true.
+    hi = 5
+    while f(hi):
+        lo = hi
+        hi *= 2
+
+    # Now binary search until lo + 1 = hi. At that point we have f(lo) and not
+    # f(lo + 1), as desired..
+    while lo + 1 < hi:
+        mid = (lo + hi) // 2
+        if f(mid):
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def pop_random(random, seq):
+    """Remove and return a random element of seq. This runs in O(1) but leaves
+    the sequence in an arbitrary order."""
+    i = random.randrange(0, len(seq))
+    swap(seq, i, len(seq) - 1)
+    return seq.pop()

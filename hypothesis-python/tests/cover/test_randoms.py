@@ -71,7 +71,8 @@ define_method_strategy(
 define_method_strategy(
     "vonmisesvariate", mu=st.floats(0, math.pi * 2), kappa=beta_param
 )
-define_method_strategy("paretovariate", alpha=beta_param)
+# Small alpha may raise ZeroDivisionError, see https://bugs.python.org/issue41421
+define_method_strategy("paretovariate", alpha=st.floats(min_value=1.0))
 define_method_strategy("shuffle", x=st.lists(st.integers()))
 define_method_strategy("randbytes", n=st.integers(0, 100))
 
@@ -368,3 +369,19 @@ def test_can_find_end_of_range():
         st.randoms(use_true_random=False).map(lambda r: r.randrange(0, 10, 2)),
         lambda n: n == 8,
     )
+
+
+@given(st.randoms(use_true_random=False))
+def test_can_sample_from_whole_range(rnd):
+    xs = list(map(str, range(10)))
+    ys = rnd.sample(xs, len(xs))
+    assert sorted(ys) == sorted(xs)
+
+
+@given(st.randoms(use_true_random=False))
+def test_can_sample_from_large_subset(rnd):
+    xs = list(map(str, range(10)))
+    n = len(xs) // 3
+    ys = rnd.sample(xs, n)
+    assert set(ys).issubset(set(xs))
+    assert len(ys) == len(set(ys)) == n
