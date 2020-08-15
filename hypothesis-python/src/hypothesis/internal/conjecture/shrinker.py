@@ -23,7 +23,7 @@ from hypothesis.internal.conjecture.choicetree import (
     prefix_selection_order,
     random_selection_order,
 )
-from hypothesis.internal.conjecture.data import ConjectureResult, Overrun, Status
+from hypothesis.internal.conjecture.data import ConjectureResult, Status
 from hypothesis.internal.conjecture.floats import (
     DRAW_FLOAT_LABEL,
     float_to_lex,
@@ -35,6 +35,7 @@ from hypothesis.internal.conjecture.junkdrawer import (
     replace_all,
 )
 from hypothesis.internal.conjecture.shrinking import Float, Integer, Lexical, Ordering
+from hypothesis.internal.conjecture.shrinking.dfas import SHRINKING_DFAS
 
 if False:
     from typing import Dict  # noqa
@@ -300,6 +301,10 @@ class Shrinker:
         self.passes_by_name = {}
         self.passes = []
 
+        # Extra DFAs that may be installed. This is used solely for
+        # testing and learning purposes.
+        self.extra_dfas = {}
+
     @derived_value
     def cached_calculations(self):
         return {}
@@ -335,6 +340,24 @@ class Shrinker:
         if name not in self.passes_by_name:
             self.add_new_pass(name)
         return self.passes_by_name[name]
+
+    @derived_value
+    def match_cache(self):
+        return {}
+
+    def matching_regions(self, dfa):
+        """Returns all pairs (u, v) such that self.buffer[u:v] is accepted
+        by this DFA."""
+
+        try:
+            return self.match_cache[dfa]
+        except KeyError:
+            pass
+        results = dfa.all_matching_regions(self.buffer)
+        results.sort(key=lambda t: (t[1] - t[0], t[1]))
+        assert all(dfa.matches(self.buffer[u:v]) for u, v in results)
+        self.match_cache[dfa] = results
+        return results
 
     @property
     def calls(self):
@@ -498,9 +521,6 @@ class Shrinker:
                 block_program("X" * 2),
                 block_program("X" * 1),
                 "pass_to_descendant",
-                "adaptive_example_deletion",
-                "alphabet_minimize",
-                "zero_examples",
                 "reorder_examples",
                 "minimize_floats",
                 "minimize_duplicated_blocks",
@@ -508,7 +528,9 @@ class Shrinker:
                 "minimize_individual_blocks",
                 block_program("--X"),
                 "redistribute_block_pairs",
+                "lower_blocks_together",
             ]
+            + [dfa_replacement(n) for n in SHRINKING_DFAS]
         )
 
     @derived_value
@@ -988,118 +1010,6 @@ class Shrinker:
                 return False
         return True
 
-    @defines_shrink_pass()
-    def adaptive_example_deletion(self, chooser):
-        """Attempts to delete every example from the test case.
-
-        That is, it is logically equivalent to trying ``self.buffer[:ex.start] +
-        self.buffer[ex.end:]`` for every example ``ex``. The order in which
-        examples are tried is randomized, and when deletion is successful it
-        will attempt to adapt to delete more than one example at a time.
-        """
-        example = chooser.choose(self.examples)
-
-        if not self.incorporate_new_buffer(
-            self.buffer[: example.start] + self.buffer[example.end :]
-        ):
-            return
-
-        # If we successfully deleted one example there may be a useful
-        # deletable region around here.
-
-        original = self.shrink_target
-        endpoints = set()
-        for ex in original.examples:
-            if ex.depth <= example.depth:
-                endpoints.add(ex.start)
-                endpoints.add(ex.end)
-
-        partition = sorted(endpoints)
-        j = partition.index(example.start)
-
-        def delete_region(a, b):
-            assert a <= j <= b
-            if a < 0 or b >= len(partition) - 1:
-                return False
-            return self.consider_new_buffer(
-                original.buffer[: partition[a]] + original.buffer[partition[b] :]
-            )
-
-        to_right = find_integer(lambda n: delete_region(j, j + n))
-        find_integer(lambda n: delete_region(j - n, j + to_right))
-
-    def try_zero_example(self, ex):
-        u = ex.start
-        v = ex.end
-        attempt = self.cached_test_function(
-            self.buffer[:u] + bytes(v - u) + self.buffer[v:]
-        )
-
-        if attempt is Overrun:
-            return False
-
-        in_replacement = attempt.examples[ex.index]
-        used = in_replacement.length
-
-        if attempt is not self.shrink_target:
-            if in_replacement.end < len(attempt.buffer) and used < ex.length:
-                self.incorporate_new_buffer(
-                    self.buffer[:u] + bytes(used) + self.buffer[v:]
-                )
-        return self.examples[ex.index].trivial
-
-    @defines_shrink_pass()
-    def zero_examples(self, chooser):
-        """Attempt to replace each example with a minimal version of itself."""
-
-        ex = chooser.choose(self.examples, lambda ex: not ex.trivial)
-
-        # If the example is already trivial, assume there's nothing to do here.
-        # We could attempt to use it as an adaptive replacement for other
-        # similar examples, but that seems to be ineffective, resulting mostly
-        # in redundant work rather than helping.
-
-        if not self.try_zero_example(ex):
-            return
-
-        # If we zeroed the example we need to get the new one that replaced it.
-        ex = self.examples[ex.index]
-
-        original = self.shrink_target
-        group = self.examples_by_label[ex.label]
-        i = group.index(ex)
-        replacement = self.buffer[ex.start : ex.end]
-
-        # We first expand to cover the trivial region surrounding this group.
-        # This avoids a situation where the adaptive phase "succeeds" a lot by
-        # virtue of not doing anything and then goes into a galloping phase
-        # where it does a bunch of useless work.
-        def all_trivial(a, b):
-            if a < 0 or b > len(group):
-                return False
-            return all(e.trivial for e in group[a:b])
-
-        start, end = expand_region(all_trivial, i, i + 1)
-
-        # If we've got multiple trivial examples of different lengths then
-        # this isn't going to work as a replacement for all of them and so we
-        # skip out early.
-        if any(e.length != len(replacement) for e in group[start:end]):
-            return
-
-        def can_zero(a, b):
-            if a < 0 or b > len(group):
-                return False
-            regions = []
-
-            for e in group[a:b]:
-                t = (e.start, e.end, replacement)
-                if not regions or t[0] >= regions[-1][1]:
-                    regions.append(t)
-            return self.consider_new_buffer(replace_all(original.buffer, regions))
-
-        expand_region(can_zero, start, end)
-
     @derived_value
     def blocks_by_non_zero_suffix(self):
         """Returns a list of blocks grouped by their non-zero suffix,
@@ -1222,13 +1132,46 @@ class Shrinker:
             attempt[block.start : block.end] = int_to_bytes(m - k, block.length)
             try:
                 attempt[next_block.start : next_block.end] = int_to_bytes(
-                    n + k, block.length
+                    n + k, next_block.length
                 )
             except OverflowError:
                 return False
             return self.consider_new_buffer(attempt)
 
         find_integer(boost)
+
+    @defines_shrink_pass()
+    def lower_blocks_together(self, chooser):
+        block = chooser.choose(self.blocks, lambda b: not b.all_zero)
+
+        # Choose the next block to be up to eight blocks onwards. We don't
+        # want to go too far (to avoid quadratic time) but it's worth a
+        # reasonable amount of lookahead, especially as we expect most
+        # blocks are zero by this point anyway.
+        next_block = self.blocks[
+            chooser.choose(
+                range(block.index + 1, min(len(self.blocks), block.index + 9)),
+                lambda j: not self.blocks[j].all_zero,
+            )
+        ]
+
+        buffer = self.buffer
+
+        m = int_from_bytes(buffer[block.start : block.end])
+        n = int_from_bytes(buffer[next_block.start : next_block.end])
+
+        def lower(k):
+            if k > min(m, n):
+                return False
+            attempt = bytearray(buffer)
+            attempt[block.start : block.end] = int_to_bytes(m - k, block.length)
+            attempt[next_block.start : next_block.end] = int_to_bytes(
+                n - k, next_block.length
+            )
+            assert len(attempt) == len(buffer)
+            return self.consider_new_buffer(attempt)
+
+        find_integer(lower)
 
     @defines_shrink_pass()
     def minimize_individual_blocks(self, chooser):
@@ -1350,81 +1293,6 @@ class Shrinker:
             random=self.random,
         )
 
-    @derived_value
-    def alphabet(self):
-        return sorted(set(self.buffer))
-
-    @defines_shrink_pass()
-    def alphabet_minimize(self, chooser):
-        """Attempts to minimize the "alphabet" - the set of bytes that
-        are used in the representation of the current buffer. The main
-        benefit of this is that it significantly increases our cache hit rate
-        by making things that are equivalent more likely to have the same
-        representation, but it's also generally a rather effective "fuzzing"
-        step that gives us a lot of good opportunities to slip to a smaller
-        representation of the same bug.
-        """
-        c = chooser.choose(self.alphabet)
-        buf = self.buffer
-
-        def can_replace_with(d):
-            if d < 0:
-                return False
-
-            if self.consider_new_buffer(bytes([d if b == c else b for b in buf])):
-                if d <= 1:
-                    # For small values of d if this succeeds we take this
-                    # as evidence that it is worth doing a a bulk replacement
-                    # where we replace all values which are close
-                    # to c but smaller with d as well. This helps us substantially
-                    # in cases where we have a lot of "dead" bytes that don't really do
-                    # much, as it allows us to replace many of them in one go rather
-                    # than one at a time. An example of where this matters is
-                    # test_minimize_multiple_elements_in_silly_large_int_range_min_is_not_dupe
-                    # in test_shrink_quality.py
-                    def replace_range(k):
-                        if k > c:
-                            return False
-
-                        def should_replace_byte(b):
-                            return c - k <= b <= c and d < b
-
-                        return self.consider_new_buffer(
-                            bytes([d if should_replace_byte(b) else b for b in buf])
-                        )
-
-                    find_integer(replace_range)
-                return True
-
-        if (
-            # If we cannot replace the current byte with its predecessor,
-            # assume it is already minimal and continue on. This ensures
-            # we make no more than one call per distinct byte value in the
-            # event that no shrinks are possible here.
-            not can_replace_with(c - 1)
-            # We next try replacing with 0 or 1. If this works then
-            # there is nothing else to do here.
-            or can_replace_with(0)
-            or can_replace_with(1)
-            # Finally we try to replace with c - 2 before going on to the
-            # binary search so that in cases which were already nearly
-            # minimal we don't do log(n) extra work.
-            or not can_replace_with(c - 2)
-        ):
-            return
-
-        # Now binary search to find a small replacement.
-
-        # Invariant: We cannot replace with lo, we can replace with hi.
-        lo = 1
-        hi = c - 2
-        while lo + 1 < hi:
-            mid = (lo + hi) // 2
-            if can_replace_with(mid):
-                hi = mid
-            else:
-                lo = mid
-
     def run_block_program(self, i, description, original, repeats=1):
         """Block programs are a mini-DSL for block rewriting, defined as a sequence
         of commands that can be run at some index into the blocks
@@ -1466,7 +1334,24 @@ class Shrinker:
         return self.incorporate_new_buffer(attempt)
 
 
-def block_program(description):
+def shrink_pass_family(f):
+    def accept(*args):
+        name = "%s(%s)" % (f.__name__, ", ".join(map(repr, args)),)
+        if name not in SHRINK_PASS_DEFINITIONS:
+
+            def run(self, chooser):
+                return f(self, chooser, *args)
+
+            run.__name__ = name
+            defines_shrink_pass()(run)
+        assert name in SHRINK_PASS_DEFINITIONS
+        return name
+
+    return accept
+
+
+@shrink_pass_family
+def block_program(self, chooser, description):
     """Mini-DSL for block rewriting. A sequence of commands that will be run
     over all contiguous sequences of blocks of the description length in order.
     Commands are:
@@ -1480,52 +1365,65 @@ def block_program(description):
     block) the block will be silently skipped over. As a side effect of
     running a block program its score will be updated.
     """
-    name = "block_program(%r)" % (description,)
+    n = len(description)
 
-    if name not in SHRINK_PASS_DEFINITIONS:
-        """Defines a shrink pass that runs the block program ``description``
-        at every block index."""
-        n = len(description)
+    """Adaptively attempt to run the block program at the current
+    index. If this successfully applies the block program ``k`` times
+    then this runs in ``O(log(k))`` test function calls."""
+    i = chooser.choose(range(len(self.shrink_target.blocks) - n))
+    # First, run the block program at the chosen index. If this fails,
+    # don't do any extra work, so that failure is as cheap as possible.
+    if not self.run_block_program(i, description, original=self.shrink_target):
+        return
 
-        def run(self, chooser):
-            """Adaptively attempt to run the block program at the current
-            index. If this successfully applies the block program ``k`` times
-            then this runs in ``O(log(k))`` test function calls."""
-            i = chooser.choose(range(len(self.shrink_target.blocks) - n))
-            # First, run the block program at the chosen index. If this fails,
-            # don't do any extra work, so that failure is as cheap as possible.
-            if not self.run_block_program(i, description, original=self.shrink_target):
-                return
+    # Because we run in a random order we will often find ourselves in the middle
+    # of a region where we could run the block program. We thus start by moving
+    # left to the beginning of that region if possible in order to to start from
+    # the beginning of that region.
+    def offset_left(k):
+        return i - k * n
 
-            # Because we run in a random order we will often find ourselves in the middle
-            # of a region where we could run the block program. We thus start by moving
-            # left to the beginning of that region if possible in order to to start from
-            # the beginning of that region.
-            def offset_left(k):
-                return i - k * n
-
-            i = offset_left(
-                find_integer(
-                    lambda k: self.run_block_program(
-                        offset_left(k), description, original=self.shrink_target
-                    )
-                )
+    i = offset_left(
+        find_integer(
+            lambda k: self.run_block_program(
+                offset_left(k), description, original=self.shrink_target
             )
+        )
+    )
 
-            original = self.shrink_target
+    original = self.shrink_target
 
-            # Now try to run the block program multiple times here.
-            find_integer(
-                lambda k: self.run_block_program(
-                    i, description, original=original, repeats=k
-                )
-            )
+    # Now try to run the block program multiple times here.
+    find_integer(
+        lambda k: self.run_block_program(i, description, original=original, repeats=k)
+    )
 
-        run.__name__ = name
 
-        defines_shrink_pass()(run)
-        assert name in SHRINK_PASS_DEFINITIONS
-    return name
+@shrink_pass_family
+def dfa_replacement(self, chooser, dfa_name):
+    """Use one of our previously learned shrinking DFAs to reduce
+    the current test case. This works by finding a match of the DFA in the
+    current buffer that is not already minimal and attempting to replace it
+    with the minimal string matching that DFA.
+    """
+
+    try:
+        dfa = SHRINKING_DFAS[dfa_name]
+    except KeyError:
+        dfa = self.extra_dfas[dfa_name]
+
+    matching_regions = self.matching_regions(dfa)
+    minimal = next(dfa.all_matching_strings())
+    u, v = chooser.choose(
+        matching_regions, lambda t: self.buffer[t[0] : t[1]] != minimal
+    )
+    p = self.buffer[u:v]
+    assert sort_key(minimal) < sort_key(p)
+    replaced = self.buffer[:u] + minimal + self.buffer[v:]
+
+    assert sort_key(replaced) < sort_key(self.buffer)
+
+    self.consider_new_buffer(replaced)
 
 
 @attr.s(slots=True, eq=False)
@@ -1579,15 +1477,6 @@ def non_zero_suffix(b):
     while i < len(b) and b[i] == 0:
         i += 1
     return b[i:]
-
-
-def expand_region(f, a, b):
-    """Attempts to find u, v with u <= a, v >= b such that f(u, v) is true.
-    Assumes that f(a, b) is already true.
-    """
-    b += find_integer(lambda k: f(a, b + k))
-    a -= find_integer(lambda k: f(a - k, b))
-    return (a, b)
 
 
 class StopShrinking(Exception):

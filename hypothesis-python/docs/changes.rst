@@ -10,6 +10,100 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.24.4:
+
+-------------------
+5.24.4 - 2020-08-14
+-------------------
+
+This patch adds yet more internal functions to support a new feature
+we're working on, like :ref:`version 5.18.3 <v5.18.3>` and
+:ref:`version 5.23.6 <v5.23.6>`.  We promise it's worth the wait!
+
+.. _v5.24.3:
+
+-------------------
+5.24.3 - 2020-08-13
+-------------------
+
+This release fixes a small internal bug in Hypothesis's internal automaton library.
+Fortunately this bug was currently impossible to hit in user facing code, so this
+has no user visible impact.
+
+.. _v5.24.2:
+
+-------------------
+5.24.2 - 2020-08-12
+-------------------
+
+This release improves shrink quality by allowing Hypothesis to automatically learn new shrink passes
+for difficult to shrink tests.
+
+The automatic learning is not currently accessible in user code (it still needs significant work
+on robustness and performance before it is ready for that), but this release includes learned
+passes that should improve shrinking quality for tests which use any of the :func:`~hypothesis.strategies.text`,:func:`~hypothesis.strategies.floats`,:func:`~hypothesis.strategies.datetimes`,,:func:`~hypothesis.strategies.emails`, and :func:`~hypothesis.strategies.complex_numbers` strategies.
+
+.. _v5.24.1:
+
+-------------------
+5.24.1 - 2020-08-12
+-------------------
+
+This patch updates some docstrings, without changing runtime behaviour.
+
+.. _v5.24.0:
+
+-------------------
+5.24.0 - 2020-08-10
+-------------------
+
+The :func:`~hypothesis.strategies.functions` strategy has a new argument
+``pure=True``, which ensures that the same return value is generated for
+identical calls to the generated function (:issue:`2538`).
+
+Thanks to Zac Hatfield-Dodds and Nikita Sobolev for this feature!
+
+.. _v5.23.12:
+
+--------------------
+5.23.12 - 2020-08-10
+--------------------
+
+This release removes a number of Hypothesis's internal "shrink passes" - transformations
+it makes to a generated test case during shrinking - which appeared to be redundant with
+other transformations.
+
+It is unlikely that you will see much impact from this. If you do, it will likely show up
+as a change in shrinking performance (probably slower, maybe faster), or possibly in
+worse shrunk results. If you encounter the latter, please let us know.
+
+.. _v5.23.11:
+
+--------------------
+5.23.11 - 2020-08-04
+--------------------
+
+This release fixes a bug in some internal Hypothesis support code. It has no user visible impact.
+
+.. _v5.23.10:
+
+--------------------
+5.23.10 - 2020-08-04
+--------------------
+
+This release improves the quality of shrunk test cases in some special cases.
+Specifically, it should get shrinking unstuck in some scenarios which require
+simultaneously changing two parts of the generated test case.
+
+.. _v5.23.9:
+
+-------------------
+5.23.9 - 2020-08-03
+-------------------
+
+This release improves the performance of some internal support code. It has no user visible impact,
+as that code is not currently run during normal Hypothesis operation.
+
 .. _v5.23.8:
 
 -------------------
