@@ -10,6 +10,62 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.27.0:
+
+-------------------
+5.27.0 - 2020-08-20
+-------------------
+
+This patch adds two new :doc:`ghostwriters <ghostwriter>` to test
+:wikipedia:`binary operations <Binary_operation>`, like :func:`python:operator.add`,
+and Numpy :np-ref:`ufuncs <ufuncs.html>` and :np-ref:`gufuncs
+<c-api/generalized-ufuncs.html>` like :obj:`np.matmul() <numpy:numpy.matmul>`.
+
+.. _v5.26.1:
+
+-------------------
+5.26.1 - 2020-08-19
+-------------------
+
+This release improves the performance of some methods in Hypothesis's internal
+automaton library. These are currently only lightly used by user code, but
+this may result in slightly faster shrinking.
+
+.. _v5.26.0:
+
+-------------------
+5.26.0 - 2020-08-17
+-------------------
+
+:func:`~hypothesis.strategies.register_type_strategy` no longer accepts
+parametrised user-defined generic types, because the resolution logic
+was quite badly broken (:issue:`2537`).
+
+Instead of registering a strategy for e.g. ``MyCollection[int]``, you
+should register a *function* for ``MyCollection`` and `inspect the type
+parameters within that function <https://stackoverflow.com/q/48572831>`__.
+
+Thanks to Nikita Sobolev for the bug report, design assistance, and
+pull request to implement this feature!
+
+.. _v5.25.0:
+
+-------------------
+5.25.0 - 2020-08-16
+-------------------
+
+Tired of writing tests?  Or new to Hypothesis and not sure where to start?
+
+This release is for you!  With our new :doc:`Ghostwriter functions <ghostwriter>`
+and :command:`hypothesis write ...` :ref:`command-line interface <hypothesis-cli>`,
+you can stop writing tests entirely... or take the source code Hypothesis
+writes for you as a starting point.
+
+This has been in the works for months, from :issue:`2118` to versions
+:ref:`5.18.3 <v5.18.3>`, :ref:`5.23.5 <v5.23.5>`, and :ref:`5.23.5 <v5.23.5>` -
+particular thanks to the many people who reviewed pull requests or commented on
+demos, and to Timothy Crosley's :pypi:`hypothesis-auto` project for inspiration.
+
 .. _v5.24.4:
 
 -------------------
@@ -41,7 +97,10 @@ for difficult to shrink tests.
 
 The automatic learning is not currently accessible in user code (it still needs significant work
 on robustness and performance before it is ready for that), but this release includes learned
-passes that should improve shrinking quality for tests which use any of the :func:`~hypothesis.strategies.text`,:func:`~hypothesis.strategies.floats`,:func:`~hypothesis.strategies.datetimes`,,:func:`~hypothesis.strategies.emails`, and :func:`~hypothesis.strategies.complex_numbers` strategies.
+passes that should improve shrinking quality for tests which use any of the
+:func:`~hypothesis.strategies.text`, :func:`~hypothesis.strategies.floats`,
+:func:`~hypothesis.strategies.datetimes`, :func:`~hypothesis.strategies.emails`,
+and :func:`~hypothesis.strategies.complex_numbers` strategies.
 
 .. _v5.24.1:
 

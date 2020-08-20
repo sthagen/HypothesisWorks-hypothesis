@@ -14,25 +14,51 @@
 # END HEADER
 
 """
-WARNING: this module is under development and should not be used... yet.
-See https://github.com/HypothesisWorks/hypothesis/pull/2344 for progress.
+Writing tests with Hypothesis frees you from the tedium of deciding on and
+writing out specific inputs to test.  Now, the ``hypothesis.extra.ghostwriter``
+module can write your test functions for you too!
+
+The idea is to provide **an easy way to start** property-based testing,
+**and a seamless transition** to more complex test code - because ghostwritten
+tests are source code that you could have written for yourself.
+
+So just pick a function you'd like tested, and feed it to one of the functions
+below or :ref:`our command-line interface <hypothesis-cli>` :command:`hypothesis write -h`!
+They follow imports, use but do not require type annotations, and generally
+do their best to write you a useful test.
+
+.. note::
+
+    The ghostwriter requires Python 3.6+ and :pypi:`black`, but the generated
+    code supports Python 3.5+ and has no dependencies beyond Hypothesis itself.
+
+.. note::
+
+    Legal questions?  While the ghostwriter fragments and logic is under the
+    MPL-2.0 license like the rest of Hypothesis, the *output* from the ghostwriter
+    is made available under the `Creative Commons Zero (CC0)
+    <https://creativecommons.org/share-your-work/public-domain/cc0/>`__
+    public domain dedication, so you can use it without any restrictions.
 """
 
 import builtins
 import enum
 import inspect
+import re
 import sys
 import types
 from collections import OrderedDict
 from itertools import permutations, zip_longest
 from string import ascii_lowercase
-from textwrap import indent
-from typing import Callable, Dict, Set, Tuple, Type, Union
+from textwrap import dedent, indent
+from typing import Callable, Dict, Mapping, Set, Tuple, Type, TypeVar, Union
 
 import black
 
-from hypothesis import strategies as st
-from hypothesis.errors import InvalidArgument
+from hypothesis import find, strategies as st
+from hypothesis.errors import InvalidArgument, Unsatisfiable
+from hypothesis.internal.compat import get_type_hints
+from hypothesis.internal.validation import check_type
 from hypothesis.strategies._internal.strategies import OneOfStrategy
 from hypothesis.utils.conventions import InferType, infer
 
@@ -133,18 +159,39 @@ def _get_params(func: Callable) -> Dict[str, inspect.Parameter]:
     try:
         params = list(inspect.signature(func).parameters.values())
     except Exception:
-        # `inspect.signature` doesn't work on ufunc objects, but we can work out
-        # what the required parameters would look like if it did.
-        if not _is_probably_ufunc(func):
+        if (
+            isinstance(func, (types.BuiltinFunctionType, types.BuiltinMethodType))
+            and hasattr(func, "__doc__")
+            and isinstance(func.__doc__, str)
+        ):
+            # inspect.signature doesn't work on all builtin functions or methods.
+            # In such cases, including the operator module on Python 3.6, we can try
+            # to reconstruct simple signatures from the docstring.
+            pattern = rf"^{func.__name__}\(([a-z]+(, [a-z]+)*)(, \\)?\)"
+            args = re.match(pattern, func.__doc__)
+            if args is None:
+                raise
+            params = [
+                # Note that we assume that the args are positional-only regardless of
+                # whether the signature shows a `/`, because this is often the case.
+                inspect.Parameter(name=name, kind=inspect.Parameter.POSITIONAL_ONLY)
+                for name in args.group(1).split(", ")
+            ]
+        elif _is_probably_ufunc(func):
+            # `inspect.signature` doesn't work on ufunc objects, but we can work out
+            # what the required parameters would look like if it did.
+            # Note that we use args named a, b, c... to match the `operator` module,
+            # rather than x1, x2, x3... like the Numpy docs.  Because they're pos-only
+            # this doesn't make a runtime difference, and it's much nicer for use-cases
+            # like `equivalent(numpy.add, operator.add)`.
+            params = [
+                inspect.Parameter(name=name, kind=inspect.Parameter.POSITIONAL_ONLY)
+                for name in ascii_lowercase[: func.nin]  # type: ignore
+            ]
+        else:
+            # If we haven't managed to recover a signature through the tricks above,
+            # we're out of ideas and should just re-raise the exception.
             raise
-        # Note that we use args named a, b, c... to match the `operator` module,
-        # rather than x1, x2, x3... like the Numpy docs.  Because they're pos-only
-        # this doesn't make a runtime difference, and it's much nicer for use-cases
-        # like `equivalent(numpy.add, operator.add)`.
-        params = [
-            inspect.Parameter(name=name, kind=inspect.Parameter.POSITIONAL_ONLY)
-            for name in ascii_lowercase[: func.nin]  # type: ignore
-        ]
     return OrderedDict((p.name, p) for p in params if p.kind not in var_param_kinds)
 
 
@@ -196,13 +243,17 @@ def _get_strategies(
 
 
 def _assert_eq(style, a, b):
-    return {
-        "pytest": f"assert {a} == {b}, ({a}, {b})",
-        "unittest": f"self.assertEqual({a}, {b})",
-    }[style]
+    if style == "unittest":
+        return f"self.assertEqual({a}, {b})"
+    assert style == "pytest"
+    if a.isidentifier() and b.isidentifier():
+        return f"assert {a} == {b}, ({a}, {b})"
+    return f"assert {a} == {b}"
 
 
 def _valid_syntax_repr(strategy):
+    if isinstance(strategy, str):
+        return strategy
     if strategy == st.text().wrapped_strategy:
         return "text()"
     # Return a syntactically-valid strategy repr, including fixing some
@@ -264,9 +315,10 @@ def _make_test_body(
     test_body: str,
     except_: Tuple[Type[Exception], ...],
     style: str,
+    given_strategies: Mapping[str, Union[str, st.SearchStrategy]] = None,
 ) -> Tuple[Set[str], str]:
     # Get strategies for all the arguments to each function we're testing.
-    given_strategies = _get_strategies(
+    given_strategies = given_strategies or _get_strategies(
         *funcs, pass_result_to_next_func=ghost in ("idempotent", "roundtrip")
     )
     given_args = ", ".join(
@@ -336,7 +388,7 @@ def _make_test(imports: Set[str], body: str) -> str:
         imports="".join(f"import {imp}\n" for imp in sorted(imports)),
         reject="reject, " if "        reject()\n" in body else "",
     )
-    nothings = body.count("=st.nothing()")
+    nothings = body.count("st.nothing()")
     if nothings == 1:
         header += "# TODO: replace st.nothing() with an appropriate strategy\n\n"
     elif nothings >= 1:
@@ -349,6 +401,26 @@ def _is_probably_ufunc(obj):
     # to be an upstream function to detect this, so we just guess.
     has_attributes = "nin nout nargs ntypes types identity signature".split()
     return callable(obj) and all(hasattr(obj, name) for name in has_attributes)
+
+
+# If we have a pair of functions where one name matches the regex and the second
+# is the result of formatting the template with matched groups, our magic()
+# ghostwriter will write a roundtrip test for them.  Additional patterns welcome.
+ROUNDTRIP_PAIRS = (
+    # Defined prefix, shared postfix.  The easy cases.
+    (r"write(.+)", "read{}"),
+    (r"save(.+)", "load{}"),
+    (r"dump(.+)", "load{}"),
+    (r"to(.+)", "from{}"),
+    # Known stem, maybe matching prefixes, maybe matching postfixes.
+    (r"(.*)encode(.*)", "{}decode{}"),
+    # Shared postfix, prefix only on "inverse" function
+    (r"(.+)", "de{}"),
+    (r"(.+)", "un{}"),
+    # a2b_postfix and b2a_postfix.  Not a fan of this pattern, but it's pretty
+    # common in code imitating an C API - see e.g. the stdlib binascii module.
+    (r"(.+)2(.+?)(_.+)?", "{1}2{0}{2}"),
+)
 
 
 def magic(
@@ -365,7 +437,10 @@ def magic(
 
     After finding the public functions attached to any modules, the ``magic``
     ghostwriter looks for pairs of functions to pass to :func:`~roundtrip`,
+    then checks for :func:`~binary_operation` and :func:`~ufunc` functions,
     and any others are passed to :func:`~fuzz`.
+
+    For example, try :command:`hypothesis write gzip` on the command line!
     """
     except_ = _check_except(except_)
     _check_style(style)
@@ -399,7 +474,42 @@ def magic(
     if len(by_name) < len(functions):
         raise InvalidArgument("Functions to magic() test must have unique names")
 
-    # TODO: identify roundtrip pairs, and write a specific test for each
+    # Look for pairs of functions that roundtrip, based on known naming patterns.
+    for writename, readname in ROUNDTRIP_PAIRS:
+        for name in sorted(by_name):
+            match = re.fullmatch(writename, name)
+            if match:
+                other = readname.format(*match.groups())
+                if other in by_name:
+                    imp, body = _make_roundtrip_body(
+                        (by_name.pop(name), by_name.pop(other)),
+                        except_=except_,
+                        style=style,
+                    )
+                    imports |= imp
+                    parts.append(body)
+
+    # Look for binary operators - functions with two identically-typed arguments,
+    # and the same return type.  The latter restriction might be lifted later.
+    for name, func in sorted(by_name.items()):
+        hints = get_type_hints(func)
+        hints.pop("return", None)
+        if len(hints) == len(_get_params(func)) == 2:
+            a, b = hints.values()
+            if a == b:
+                imp, body = _make_binop_body(func, except_=except_, style=style)
+                imports |= imp
+                parts.append(body)
+                del by_name[name]
+
+    # Look for Numpy ufuncs or gufuncs, and write array-oriented tests for them.
+    if "numpy" in sys.modules:
+        for name, func in sorted(by_name.items()):
+            if _is_probably_ufunc(func):
+                imp, body = _make_ufunc_body(func, except_=except_, style=style)
+                imports |= imp
+                parts.append(body)
+                del by_name[name]
 
     # For all remaining callables, just write a fuzz-test.  In principle we could
     # guess at equivalence or idempotence; but it doesn't seem accurate enough to
@@ -458,3 +568,352 @@ def fuzz(func: Callable, *, except_: Except = (), style: str = "pytest") -> str:
         func, test_body=_write_call(func), except_=except_, ghost="fuzz", style=style
     )
     return _make_test(imports, body)
+
+
+def idempotent(func: Callable, *, except_: Except = (), style: str = "pytest") -> str:
+    """Write source code for a property-based test of ``func``.
+
+    The resulting test checks that if you call ``func`` on it's own output,
+    the result does not change.  For example:
+
+    .. code-block:: python
+
+        from typing import Sequence
+        from hypothesis.extra import ghostwriter
+
+        def timsort(seq: Sequence[int]) -> Sequence[int]:
+            return sorted(seq)
+
+        ghostwriter.idempotent(timsort)
+
+    Gives:
+
+    .. code-block:: python
+
+        # This test code was written by the `hypothesis.extra.ghostwriter` module
+        # and is provided under the Creative Commons Zero public domain dedication.
+
+        from hypothesis import given, strategies as st
+
+        @given(seq=st.one_of(st.binary(), st.binary().map(bytearray), st.lists(st.integers())))
+        def test_idempotent_timsort(seq):
+            result = timsort(seq=seq)
+            repeat = timsort(seq=result)
+            assert result == repeat, (result, repeat)
+    """
+    if not callable(func):
+        raise InvalidArgument(f"Got non-callable func={func!r}")
+    except_ = _check_except(except_)
+    _check_style(style)
+
+    test_body = "result = {}\nrepeat = {}\n{}".format(
+        _write_call(func),
+        _write_call(func, "result"),
+        _assert_eq(style, "result", "repeat"),
+    )
+
+    imports, body = _make_test_body(
+        func, test_body=test_body, except_=except_, ghost="idempotent", style=style
+    )
+    return _make_test(imports, body)
+
+
+def _make_roundtrip_body(funcs, except_, style):
+    first_param = next(iter(_get_params(funcs[0])))
+    test_lines = [
+        "value0 = " + _write_call(funcs[0]),
+        *(
+            f"value{i + 1} = " + _write_call(f, f"value{i}")
+            for i, f in enumerate(funcs[1:])
+        ),
+        _assert_eq(style, first_param, f"value{len(funcs) - 1}"),
+    ]
+    return _make_test_body(
+        *funcs,
+        test_body="\n".join(test_lines),
+        except_=except_,
+        ghost="roundtrip",
+        style=style,
+    )
+
+
+def roundtrip(*funcs: Callable, except_: Except = (), style: str = "pytest") -> str:
+    """Write source code for a property-based test of ``funcs``.
+
+    The resulting test checks that if you call the first function, pass the result
+    to the second (and so on), the final result is equal to the first input argument.
+
+    This is a *very* powerful property to test, especially when the config options
+    are varied along with the object to round-trip.  For example, try ghostwriting
+    a test for :func:`python:json.dumps` - would you have thought of all that?
+
+    .. code-block:: shell
+
+        hypothesis write --roundtrip json.dumps json.loads
+    """
+    if not funcs:
+        raise InvalidArgument("Round-trip of zero functions is meaningless.")
+    for i, f in enumerate(funcs):
+        if not callable(f):
+            raise InvalidArgument(f"Got non-callable funcs[{i}]={f!r}")
+    except_ = _check_except(except_)
+    _check_style(style)
+    return _make_test(*_make_roundtrip_body(funcs, except_, style))
+
+
+def equivalent(*funcs: Callable, except_: Except = (), style: str = "pytest") -> str:
+    """Write source code for a property-based test of ``funcs``.
+
+    The resulting test checks that calling each of the functions gives
+    the same result.  This can be used as a classic 'oracle', such as testing
+    a fast sorting algorithm against the :func:`python:sorted` builtin, or
+    for differential testing where none of the compared functions are fully
+    trusted but any difference indicates a bug (e.g. running a function on
+    different numbers of threads, or simply multiple times).
+
+    The functions should have reasonably similar signatures, as only the
+    common parameters will be passed the same arguments - any other parameters
+    will be allowed to vary.
+    """
+    if len(funcs) < 2:
+        raise InvalidArgument("Need at least two functions to compare.")
+    for i, f in enumerate(funcs):
+        if not callable(f):
+            raise InvalidArgument(f"Got non-callable funcs[{i}]={f!r}")
+    except_ = _check_except(except_)
+    _check_style(style)
+
+    var_names = [f"result_{f.__name__}" for f in funcs]
+    if len(set(var_names)) < len(var_names):
+        var_names = [f"result_{i}_{ f.__name__}" for i, f in enumerate(funcs)]
+    test_lines = [
+        vname + " = " + _write_call(f) for vname, f in zip(var_names, funcs)
+    ] + [_assert_eq(style, var_names[0], vname) for vname in var_names[1:]]
+
+    imports, body = _make_test_body(
+        *funcs,
+        test_body="\n".join(test_lines),
+        except_=except_,
+        ghost="equivalent",
+        style=style,
+    )
+    return _make_test(imports, body)
+
+
+X = TypeVar("X")
+Y = TypeVar("Y")
+
+
+def binary_operation(
+    func: Callable[[X, X], Y],
+    *,
+    associative: bool = True,
+    commutative: bool = True,
+    identity: Union[X, InferType, None] = infer,
+    distributes_over: Callable[[X, X], X] = None,
+    except_: Except = (),
+    style: str = "pytest",
+) -> str:
+    """Write property tests for the binary operation ``func``.
+
+    While :wikipedia:`binary operations <Binary_operation>` are not particularly
+    common, they have such nice properties to test that it seems a shame not to
+    demonstrate them with a ghostwriter.  For an operator `f`, test that:
+
+    - if :wikipedia:`associative <Associative_property>`,
+      ``f(a, f(b, c)) == f(f(a, b), c)``
+    - if :wikipedia:`commutative <Commutative_property>`, ``f(a, b) == f(b, a)``
+    - if :wikipedia:`identity <Identity_element>` is not None, ``f(a, identity) == a``
+    - if :wikipedia:`distributes_over <Distributive_property>` is ``+``,
+      ``f(a, b) + f(a, c) == f(a, b+c)``
+
+    For example:
+
+    .. code-block:: python
+
+        ghostwriter.binary_operation(
+            operator.mul,
+            identity=1,
+            inverse=operator.div,
+            distributes_over=operator.add,
+            style="unittest",
+        )
+    """
+    if not callable(func):
+        raise InvalidArgument(f"Got non-callable func={func!r}")
+    except_ = _check_except(except_)
+    _check_style(style)
+    check_type(bool, associative, "associative")
+    check_type(bool, commutative, "commutative")
+    if distributes_over is not None and not callable(distributes_over):
+        raise InvalidArgument(
+            f"distributes_over={distributes_over!r} must be an operation which "
+            f"distributes over {func.__name__}"
+        )
+    if not any([associative, commutative, identity, distributes_over]):
+        raise InvalidArgument(
+            "You must select at least one property of the binary operation to test."
+        )
+    imports, body = _make_binop_body(
+        func,
+        associative=associative,
+        commutative=commutative,
+        identity=identity,
+        distributes_over=distributes_over,
+        except_=except_,
+        style=style,
+    )
+    return _make_test(imports, body)
+
+
+def _make_binop_body(
+    func: Callable[[X, X], Y],
+    *,
+    associative: bool = True,
+    commutative: bool = True,
+    identity: Union[X, InferType, None] = infer,
+    distributes_over: Callable[[X, X], X] = None,
+    except_: Tuple[Type[Exception], ...],
+    style: str,
+) -> Tuple[Set[str], str]:
+    # TODO: collapse togther first two strategies, keep any others (for flags etc.)
+    # assign this as a global variable, which will be prepended to the test bodies
+    strategies = _get_strategies(func)
+    operands, b = [strategies.pop(p) for p in list(_get_params(func))[:2]]
+    if repr(operands) != repr(b):
+        operands |= b
+    operands_name = func.__name__ + "_operands"
+
+    all_imports = set()
+    parts = []
+
+    def maker(sub_property: str, args: str, body: str, right: str = None) -> None:
+        if right is not None:
+            body = f"left={body}\nright={right}\n" + _assert_eq(style, "left", "right")
+        imports, body = _make_test_body(
+            func,
+            test_body=body,
+            ghost=sub_property + "_binary_operation",
+            except_=except_,
+            style=style,
+            given_strategies={**strategies, **{n: operands_name for n in args}},
+        )
+        all_imports.update(imports)
+        if style == "unittest":
+            endline = "(unittest.TestCase):\n"
+            body = body[body.index(endline) + len(endline) + 1 :]
+        parts.append(body)
+
+    if associative:
+        maker(
+            "associative",
+            "abc",
+            _write_call(func, "a", _write_call(func, "b", "c")),
+            _write_call(func, _write_call(func, "a", "b"), "c"),
+        )
+    if commutative:
+        maker(
+            "commutative",
+            "ab",
+            _write_call(func, "a", "b"),
+            _write_call(func, "b", "a"),
+        )
+    if identity is not None:
+        # Guess that the identity element is the minimal example from our operands
+        # strategy.  This is correct often enough to be worthwhile, and close enough
+        # that it's a good starting point to edit much of the rest.
+        if identity is infer:
+            try:
+                identity = find(operands, lambda x: True)
+            except Unsatisfiable:
+                identity = "identity element here"  # type: ignore
+        maker(
+            "identity",
+            "a",
+            _assert_eq(style, "a", _write_call(func, "a", repr(identity))),
+        )
+    if distributes_over:
+        maker(
+            distributes_over.__name__ + "_distributes_over",
+            "abc",
+            _write_call(
+                distributes_over,
+                _write_call(func, "a", "b"),
+                _write_call(func, "a", "c"),
+            ),
+            _write_call(func, "a", _write_call(distributes_over, "b", "c")),
+        )
+
+    operands_repr = repr(operands)
+    for name in st.__all__:
+        operands_repr = operands_repr.replace(f"{name}(", f"st.{name}(")
+    classdef = ""
+    if style == "unittest":
+        classdef = f"class TestBinaryOperation{func.__name__}(unittest.TestCase):\n    "
+    return (
+        all_imports,
+        classdef + f"{operands_name} = {operands_repr}\n" + "\n".join(parts),
+    )
+
+
+def ufunc(func: Callable, *, except_: Except = (), style: str = "pytest") -> str:
+    """Write a property-based test for the :np-ref:`array unfunc <ufuncs.html>` ``func``.
+
+    The resulting test checks that your ufunc or :np-ref:`gufunc
+    <c-api/generalized-ufuncs.html>` has the expected broadcasting and dtype casting
+    behaviour.  You will probably want to add extra assertions, but as with the other
+    ghostwriters this gives you a great place to start.
+
+    .. code-block:: shell
+
+        hypothesis write numpy.matmul
+    """
+    if not _is_probably_ufunc(func):
+        raise InvalidArgument(f"func={func!r} does not seem to be a ufunc")
+    except_ = _check_except(except_)
+    _check_style(style)
+    return _make_test(*_make_ufunc_body(func, except_=except_, style=style))
+
+
+def _make_ufunc_body(func, *, except_, style):
+
+    import hypothesis.extra.numpy as npst
+
+    if func.signature is None:
+        shapes = npst.mutually_broadcastable_shapes(num_shapes=func.nin)
+    else:
+        shapes = npst.mutually_broadcastable_shapes(signature=func.signature)
+
+    body = """
+    input_shapes, expected_shape = shapes
+    input_dtypes, expected_dtype = types.split("->")
+    array_st = [npst.arrays(d, s) for d, s in zip(input_dtypes, input_shapes)]
+
+    {array_names} = data.draw(st.tuples(*array_st))
+    result = {call}
+
+    {shape_assert}
+    {type_assert}
+    """.format(
+        array_names=", ".join(ascii_lowercase[: func.nin]),
+        call=_write_call(func, *ascii_lowercase[: func.nin]),
+        shape_assert=_assert_eq(style, "result.shape", "expected_shape"),
+        type_assert=_assert_eq(style, "result.dtype.char", "expected_dtype"),
+    )
+
+    imports, body = _make_test_body(
+        func,
+        test_body=dedent(body).strip(),
+        except_=except_,
+        ghost="ufunc" if func.signature is None else "gufunc",
+        style=style,
+        given_strategies={
+            "data": st.data(),
+            "shapes": shapes,
+            "types": f"sampled_from({_get_qualname(func, include_module=True)}.types)"
+            ".filter(lambda sig: 'O' not in sig)",
+        },
+    )
+    imports.add("hypothesis.extra.numpy as npst")
+    body = body.replace("mutually_broadcastable", "npst.mutually_broadcastable")
+    return imports, body
