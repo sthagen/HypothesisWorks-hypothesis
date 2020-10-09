@@ -191,8 +191,8 @@ def cacheable(fn: T) -> T:
     return cached_strategy
 
 
-def base_defines_strategy(
-    force_reusable: bool, *, try_non_lazy: bool = False
+def defines_strategy(
+    *, force_reusable_values: bool = False, try_non_lazy: bool = False
 ) -> Callable[[T], T]:
     """Returns a decorator for strategy functions.
 
@@ -223,7 +223,7 @@ def base_defines_strategy(
                     # wrap that up in a LazyStrategy so it happens again later.
                     pass
             result = LazyStrategy(strategy_definition, args, kwargs)
-            if force_reusable:
+            if force_reusable_values:
                 result.force_has_reusable_values = True
                 assert result.has_reusable_values
             return result
@@ -232,11 +232,6 @@ def base_defines_strategy(
         return accept
 
     return decorator
-
-
-defines_strategy = base_defines_strategy(False)
-defines_strategy_with_reusable_values = base_defines_strategy(True)
-defines_strategy_without_laziness = base_defines_strategy(False, try_non_lazy=True)
 
 
 class Nothing(SearchStrategy):
@@ -291,7 +286,7 @@ def just(value: T) -> SearchStrategy[T]:
     return JustStrategy(value)
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 def none() -> SearchStrategy[None]:
     """Return a strategy which only generates None.
 
@@ -303,12 +298,12 @@ def none() -> SearchStrategy[None]:
 
 @overload
 def one_of(args: Sequence[SearchStrategy[Any]]) -> SearchStrategy[Any]:
-    pass  # pragma: no cover
+    raise NotImplementedError
 
 
 @overload  # noqa: F811
 def one_of(*args: SearchStrategy[Any]) -> SearchStrategy[Any]:
-    pass  # pragma: no cover
+    raise NotImplementedError
 
 
 def one_of(*args):  # noqa: F811
@@ -344,12 +339,23 @@ def one_of(*args):  # noqa: F811
         # without incurring any performance overhead when there is only one
         # strategy, and keeps our reprs simple.
         return args[0]
+    if args and not any(isinstance(a, SearchStrategy) for a in args):
+        # And this special case is to give a more-specific error message if it
+        # seems that the user has confused `one_of()` for  `sampled_from()`;
+        # the remaining validation is left to OneOfStrategy.  See PR #2627.
+        raise InvalidArgument(
+            f"Did you mean st.sampled_from({list(args)!r})?  st.one_of() is used "
+            "to combine strategies, but all of the arguments were of other types."
+        )
     return OneOfStrategy(args)
 
 
 @cacheable
-@defines_strategy_with_reusable_values
-def integers(min_value: int = None, max_value: int = None) -> SearchStrategy[int]:
+@defines_strategy(force_reusable_values=True)
+def integers(
+    min_value: Optional[int] = None,
+    max_value: Optional[int] = None,
+) -> SearchStrategy[int]:
     """Returns a strategy which generates integers.
 
     If min_value is not None then all values will be >= min_value. If
@@ -405,7 +411,7 @@ def integers(min_value: int = None, max_value: int = None) -> SearchStrategy[int
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 def booleans() -> SearchStrategy[bool]:
     """Returns a strategy which generates instances of :class:`python:bool`.
 
@@ -416,17 +422,17 @@ def booleans() -> SearchStrategy[bool]:
 
 
 @cacheable
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def floats(
-    min_value: Real = None,
-    max_value: Real = None,
+    min_value: Optional[Real] = None,
+    max_value: Optional[Real] = None,
     *,
-    allow_nan: bool = None,
-    allow_infinity: bool = None,
+    allow_nan: Optional[bool] = None,
+    allow_infinity: Optional[bool] = None,
     width: int = 64,
     exclude_min: bool = False,
-    exclude_max: bool = False
+    exclude_max: bool = False,
 ) -> SearchStrategy[float]:
     """Returns a strategy which generates floats.
 
@@ -446,8 +452,6 @@ def floats(
     required to represent the generated float. Valid values are 16, 32, or 64.
     Passing ``width=32`` will still use the builtin 64-bit ``float`` class,
     but always for values which can be exactly represented as a 32-bit float.
-    Half-precision floats (``width=16``) are not supported on Python 3.5,
-    unless :pypi:`Numpy` is installed.
 
     The exclude_min and exclude_max argument can be used to generate numbers
     from open or half-open intervals, by excluding the respective endpoints.
@@ -477,10 +481,6 @@ def floats(
         raise InvalidArgument(
             "Got width=%r, but the only valid values are the integers 16, "
             "32, and 64." % (width,)
-        )
-    if width == 16 and sys.version_info[:2] < (3, 6) and "numpy" not in sys.modules:
-        raise InvalidArgument(  # pragma: no cover
-            "width=16 requires either Numpy, or Python >= 3.6"
         )
 
     check_valid_bound(min_value, "min_value")
@@ -634,7 +634,7 @@ def floats(
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 def tuples(*args: SearchStrategy) -> SearchStrategy[tuple]:
     """Return a strategy which generates a tuple of the same length as args by
     generating the value at index i from args[i].
@@ -652,16 +652,16 @@ def tuples(*args: SearchStrategy) -> SearchStrategy[tuple]:
 
 @overload
 def sampled_from(elements: Sequence[T]) -> SearchStrategy[T]:
-    pass  # pragma: no cover
+    raise NotImplementedError
 
 
 @overload  # noqa: F811
 def sampled_from(elements: Type[enum.Enum]) -> SearchStrategy[Any]:
     # `SearchStrategy[Enum]` is unreliable due to metaclass issues.
-    pass  # pragma: no cover
+    raise NotImplementedError
 
 
-@defines_strategy_without_laziness  # noqa: F811
+@defines_strategy(try_non_lazy=True)  # noqa: F811
 def sampled_from(elements):
     """Returns a strategy which generates any value present in ``elements``.
 
@@ -686,7 +686,7 @@ def sampled_from(elements):
         repr_ = "sampled_from(%s.%s)" % (elements.__module__, elements.__name__)
     else:
         repr_ = "sampled_from(%r)" % (elements,)
-    if hasattr(enum, "Flag") and isclass(elements) and issubclass(elements, enum.Flag):
+    if isclass(elements) and issubclass(elements, enum.Flag):
         # Combinations of enum.Flag members are also members.  We generate
         # these dynamically, because static allocation takes O(2^n) memory.
         # LazyStrategy is used for the ease of force_repr.
@@ -698,15 +698,15 @@ def sampled_from(elements):
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 @deprecated_posargs
 def lists(
     elements: SearchStrategy[Ex],
     *,
     min_size: int = 0,
-    max_size: int = None,
-    unique_by: UniqueBy = None,
-    unique: bool = False
+    max_size: Optional[int] = None,
+    unique_by: Optional[UniqueBy] = None,
+    unique: bool = False,
 ) -> SearchStrategy[List[Ex]]:
     """Returns a list containing values drawn from elements with length in the
     interval [min_size, max_size] (no bounds in that direction if these are
@@ -789,10 +789,13 @@ def lists(
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 @deprecated_posargs
 def sets(
-    elements: SearchStrategy[Ex], *, min_size: int = 0, max_size: int = None
+    elements: SearchStrategy[Ex],
+    *,
+    min_size: int = 0,
+    max_size: Optional[int] = None,
 ) -> SearchStrategy[Set[Ex]]:
     """This has the same behaviour as lists, but returns sets instead.
 
@@ -809,10 +812,13 @@ def sets(
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 @deprecated_posargs
 def frozensets(
-    elements: SearchStrategy[Ex], *, min_size: int = 0, max_size: int = None
+    elements: SearchStrategy[Ex],
+    *,
+    min_size: int = 0,
+    max_size: Optional[int] = None,
 ) -> SearchStrategy[FrozenSet[Ex]]:
     """This is identical to the sets function but instead returns
     frozensets."""
@@ -833,18 +839,18 @@ class PrettyIter:
         return next(self._iter)
 
     def __repr__(self):
-        return "iter({!r})".format(self._values)
+        return f"iter({self._values!r})"
 
 
-@defines_strategy
+@defines_strategy()
 @deprecated_posargs
 def iterables(
     elements: SearchStrategy[Ex],
     *,
     min_size: int = 0,
-    max_size: int = None,
-    unique_by: UniqueBy = None,
-    unique: bool = False
+    max_size: Optional[int] = None,
+    unique_by: Optional[UniqueBy] = None,
+    unique: bool = False,
 ) -> SearchStrategy[Iterable[Ex]]:
     """This has the same behaviour as lists, but returns iterables instead.
 
@@ -862,11 +868,11 @@ def iterables(
     ).map(PrettyIter)
 
 
-@defines_strategy
+@defines_strategy()
 def fixed_dictionaries(
     mapping: Dict[T, SearchStrategy[Ex]],
     *,
-    optional: Dict[T, SearchStrategy[Ex]] = None
+    optional: Optional[Dict[T, SearchStrategy[Ex]]] = None,
 ) -> SearchStrategy[Dict[T, Ex]]:
     """Generates a dictionary of the same type as mapping with a fixed set of
     keys mapping to strategies. ``mapping`` must be a dict subclass.
@@ -904,7 +910,7 @@ def fixed_dictionaries(
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 @deprecated_posargs
 def dictionaries(
     keys: SearchStrategy[Ex],
@@ -912,7 +918,7 @@ def dictionaries(
     *,
     dict_class: type = dict,
     min_size: int = 0,
-    max_size: int = None
+    max_size: Optional[int] = None,
 ) -> SearchStrategy[Dict[Ex, T]]:
     # Describing the exact dict_class to Mypy drops the key and value types,
     # so we report Dict[K, V] instead of Mapping[Any, Any] for now.  Sorry!
@@ -940,16 +946,16 @@ def dictionaries(
 
 
 @cacheable
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def characters(
     *,
-    whitelist_categories: Sequence[str] = None,
-    blacklist_categories: Sequence[str] = None,
-    blacklist_characters: Sequence[str] = None,
-    min_codepoint: int = None,
-    max_codepoint: int = None,
-    whitelist_characters: Sequence[str] = None
+    whitelist_categories: Optional[Sequence[str]] = None,
+    blacklist_categories: Optional[Sequence[str]] = None,
+    blacklist_characters: Optional[Sequence[str]] = None,
+    min_codepoint: Optional[int] = None,
+    max_codepoint: Optional[int] = None,
+    whitelist_characters: Optional[Sequence[str]] = None,
 ) -> SearchStrategy[str]:
     r"""Generates characters, length-one :class:`python:str`\ ings,
     following specified filtering rules.
@@ -1047,7 +1053,7 @@ def characters(
 
 
 @cacheable
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def text(
     alphabet: Union[Sequence[str], SearchStrategy[str]] = characters(
@@ -1055,7 +1061,7 @@ def text(
     ),
     *,
     min_size: int = 0,
-    max_size: int = None
+    max_size: Optional[int] = None,
 ) -> SearchStrategy[str]:
     """Generates strings with characters drawn from ``alphabet``, which should
     be a collection of length one strings or a strategy generating such strings.
@@ -1103,7 +1109,7 @@ def text(
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 @deprecated_posargs
 def from_regex(
     regex: Union[AnyStr, Pattern[AnyStr]], *, fullmatch: bool = False
@@ -1144,9 +1150,13 @@ def from_regex(
 
 
 @cacheable
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
-def binary(*, min_size: int = 0, max_size: int = None) -> SearchStrategy[bytes]:
+def binary(
+    *,
+    min_size: int = 0,
+    max_size: Optional[int] = None,
+) -> SearchStrategy[bytes]:
     """Generates :class:`python:bytes`.
 
     The generated :class:`python:bytes` will have a length of at least ``min_size``
@@ -1164,9 +1174,11 @@ def binary(*, min_size: int = 0, max_size: int = None) -> SearchStrategy[bytes]:
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 def randoms(
-    *, note_method_calls: bool = False, use_true_random: bool = None
+    *,
+    note_method_calls: bool = False,
+    use_true_random: Optional[bool] = None,
 ) -> SearchStrategy[random.Random]:
     """Generates instances of ``random.Random``. The generated Random instances
     are of a special HypothesisRandom subclass.
@@ -1217,7 +1229,7 @@ class RandomModule(SearchStrategy):
 
 
 @cacheable
-@defines_strategy
+@defines_strategy()
 def random_module() -> SearchStrategy[RandomSeeder]:
     """The Hypothesis engine handles PRNG state for the stdlib and Numpy random
     modules internally, always seeding them to zero and restoring the previous
@@ -1240,10 +1252,10 @@ def random_module() -> SearchStrategy[RandomSeeder]:
 # Note that for the benefit of documentation and introspection tools, we set the
 # __signature__ attribute to show the semantic rather than actual signature.
 @cacheable
-@defines_strategy
+@defines_strategy()
 def builds(
     *callable_and_args: Union[Callable[..., Ex], SearchStrategy[Any]],
-    **kwargs: Union[SearchStrategy[Any], InferType]
+    **kwargs: Union[SearchStrategy[Any], InferType],
 ) -> SearchStrategy[Ex]:
     """Generates values by drawing from ``args`` and ``kwargs`` and passing
     them to the callable (provided as the first positional argument) in the
@@ -1452,13 +1464,6 @@ def _from_type(thing: Type[Ex]) -> SearchStrategy[Ex]:
         if getattr(thing, "__origin__", None) is typing.Union:
             args = sorted(thing.__args__, key=types.type_sorting_key)
             return one_of([from_type(t) for t in args])
-    # We can't resolve forward references, and under Python 3.5 (only)
-    # a forward reference is an instance of type.  Hence, explicit check:
-    elif type(thing) == getattr(typing, "_ForwardRef", None):  # pragma: no cover
-        raise ResolutionFailed(
-            "thing=%s cannot be resolved.  Upgrading to python>=3.6 may "
-            "fix this problem via improvements to the typing module." % (thing,)
-        )
     if not types.is_a_type(thing):
         raise InvalidArgument("thing=%s must be a type" % (thing,))
     # Now that we know `thing` is a type, the first step is to check for an
@@ -1468,6 +1473,11 @@ def _from_type(thing: Type[Ex]) -> SearchStrategy[Ex]:
     # convert empty results into an explicit error.
     if thing in types._global_type_lookup:
         return as_strategy(types._global_type_lookup[thing], thing)
+    # We also have a special case for TypeVars.
+    # They are represented as instances like `~T` when they come here.
+    # We need to work with their type instead.
+    if isinstance(thing, TypeVar) and type(thing) in types._global_type_lookup:  # type: ignore
+        return as_strategy(types._global_type_lookup[type(thing)], thing)
     # If there's no explicitly registered strategy, maybe a subtype of thing
     # is registered - if so, we can resolve it to the subclass strategy.
     # We'll start by checking if thing is from from the typing module,
@@ -1519,13 +1529,13 @@ def _from_type(thing: Type[Ex]) -> SearchStrategy[Ex]:
 
 
 @cacheable
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def fractions(
-    min_value: Union[Real, str] = None,
-    max_value: Union[Real, str] = None,
+    min_value: Optional[Union[Real, str]] = None,
+    max_value: Optional[Union[Real, str]] = None,
     *,
-    max_denominator: int = None
+    max_denominator: Optional[int] = None,
 ) -> SearchStrategy[Fraction]:
     """Returns a strategy which generates Fractions.
 
@@ -1606,7 +1616,7 @@ def fractions(
 
 
 def _as_finite_decimal(
-    value: Union[Real, str, None], name: str, allow_infinity: Optional[bool],
+    value: Union[Real, str, None], name: str, allow_infinity: Optional[bool]
 ) -> Optional[Decimal]:
     """Convert decimal bounds to decimals, carefully."""
     assert name in ("min_value", "max_value")
@@ -1629,15 +1639,15 @@ def _as_finite_decimal(
 
 
 @cacheable
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def decimals(
-    min_value: Union[Real, str] = None,
-    max_value: Union[Real, str] = None,
+    min_value: Optional[Union[Real, str]] = None,
+    max_value: Optional[Union[Real, str]] = None,
     *,
-    allow_nan: bool = None,
-    allow_infinity: bool = None,
-    places: int = None
+    allow_nan: Optional[bool] = None,
+    allow_infinity: Optional[bool] = None,
+    places: Optional[int] = None,
 ) -> SearchStrategy[Decimal]:
     """Generates instances of :class:`python:decimal.Decimal`, which may be:
 
@@ -1723,7 +1733,7 @@ def recursive(
     base: SearchStrategy[Ex],
     extend: Callable[[SearchStrategy[Any]], SearchStrategy[T]],
     *,
-    max_leaves: int = 100
+    max_leaves: int = 100,
 ) -> SearchStrategy[Union[T, Ex]]:
     """base: A strategy to start from.
 
@@ -1765,7 +1775,7 @@ class PermutationStrategy(SearchStrategy):
         return result
 
 
-@defines_strategy
+@defines_strategy()
 def permutations(values: Sequence[T]) -> SearchStrategy[List[T]]:
     """Return a strategy which returns permutations of the ordered collection
     ``values``.
@@ -1822,7 +1832,7 @@ def composite(f: Callable[..., Ex]) -> Callable[..., SearchStrategy[Ex]]:
     }
     new_argspec = argspec._replace(args=argspec.args[1:], annotations=annots)
 
-    @defines_strategy
+    @defines_strategy()
     @define_function_signature(f.__name__, f.__doc__, new_argspec)
     def accept(*args, **kwargs):
         return CompositeStrategy(f, args, kwargs)
@@ -1831,15 +1841,15 @@ def composite(f: Callable[..., Ex]) -> Callable[..., SearchStrategy[Ex]]:
     return accept
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @cacheable
 @deprecated_posargs
 def complex_numbers(
     *,
     min_magnitude: Real = 0,
-    max_magnitude: Real = None,
-    allow_infinity: bool = None,
-    allow_nan: bool = None
+    max_magnitude: Optional[Real] = None,
+    allow_infinity: Optional[bool] = None,
+    allow_nan: Optional[bool] = None,
 ) -> SearchStrategy[complex]:
     """Returns a strategy that generates complex numbers.
 
@@ -1920,7 +1930,11 @@ def complex_numbers(
 
 
 @deprecated_posargs
-def shared(base: SearchStrategy[Ex], *, key: Hashable = None) -> SearchStrategy[Ex]:
+def shared(
+    base: SearchStrategy[Ex],
+    *,
+    key: Optional[Hashable] = None,
+) -> SearchStrategy[Ex]:
     """Returns a strategy that draws a single shared value per run, drawn from
     base. Any two shared instances with the same key will share the same value,
     otherwise the identity of this strategy will be used. That is:
@@ -1941,9 +1955,9 @@ def shared(base: SearchStrategy[Ex], *, key: Hashable = None) -> SearchStrategy[
 
 
 @cacheable
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
-def uuids(*, version: int = None) -> SearchStrategy[UUID]:
+def uuids(*, version: Optional[int] = None) -> SearchStrategy[UUID]:
     """Returns a strategy that generates :class:`UUIDs <uuid.UUID>`.
 
     If the optional version argument is given, value is passed through
@@ -1986,7 +2000,7 @@ class RunnerStrategy(SearchStrategy):
             return runner
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def runner(*, default: Any = not_set) -> SearchStrategy[Any]:
     """A strategy for getting "the current test runner", whatever that may be.
@@ -2168,7 +2182,7 @@ def deferred(definition: Callable[[], SearchStrategy[Ex]]) -> SearchStrategy[Ex]
     return DeferredStrategy(definition)
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 def emails() -> SearchStrategy[str]:
     """A strategy for generating email addresses as unicode strings. The
     address format is specified in :rfc:`5322#section-3.4.1`. Values shrink
@@ -2187,13 +2201,13 @@ def emails() -> SearchStrategy[str]:
     )
 
 
-@defines_strategy
+@defines_strategy()
 @deprecated_posargs
 def functions(
     *,
     like: Callable[..., Any] = lambda: None,
-    returns: SearchStrategy[Any] = None,
-    pure: bool = False
+    returns: Optional[SearchStrategy[Any]] = None,
+    pure: bool = False,
 ) -> SearchStrategy[Callable[..., Any]]:
     # The proper type signature of `functions()` would have T instead of Any, but mypy
     # disallows default args for generics: https://github.com/python/mypy/issues/3737

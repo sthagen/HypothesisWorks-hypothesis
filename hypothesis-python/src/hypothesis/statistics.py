@@ -38,11 +38,11 @@ def describe_targets(best_targets):
         return []
     elif len(best_targets) == 1:
         label, score = next(iter(best_targets.items()))
-        return ["Highest target score: {:g}  (label={!r})".format(score, label)]
+        return [f"Highest target score: {score:g}  (label={label!r})"]
     else:
         lines = ["Highest target scores:"]
         for label, score in sorted(best_targets.items(), key=lambda x: x[::-1]):
-            lines.append("{:>16g}  (label={!r})".format(score, label))
+            lines.append(f"{score:>16g}  (label={label!r})")
         return lines
 
 
@@ -117,7 +117,7 @@ def describe_statistics(stats_dict):
         if phase == "shrink":
             lines.append(
                 "    - Tried {} shrinks of which {} were successful".format(
-                    len(cases), d["shrinks-successful"],
+                    len(cases), d["shrinks-successful"]
                 )
             )
         lines.append("")

@@ -1,5 +1,5 @@
 ===================================
-Hypothesis for the Scientific Stack
+Hypothesis for the scientific stack
 ===================================
 
 .. _hypothesis-numpy:
@@ -41,13 +41,13 @@ a strategy for generating elements for it).
    :members:
 
 ~~~~~~~~~~~~~~~~~~
-Supported Versions
+Supported versions
 ~~~~~~~~~~~~~~~~~~
 
 There is quite a lot of variation between pandas versions. We only
 commit to supporting the latest version of pandas, but older minor versions are
 supported on a "best effort" basis.  Hypothesis is currently tested against
-and confirmed working with every Pandas minor version from 0.19 through to 1.0.
+and confirmed working with every Pandas minor version from 0.25 through to 1.1.
 
 Releases that are not the latest patch release of their minor version are not
 tested or officially supported, but will probably also work unless you hit a

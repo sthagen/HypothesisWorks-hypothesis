@@ -1,5 +1,5 @@
 ===============================
-The Hypothesis Example Database
+The Hypothesis example database
 ===============================
 
 When Hypothesis finds a bug it stores enough information in its database to reproduce it. This
@@ -20,20 +20,6 @@ workflow considerably by making sure that the examples you've just found are rep
 The database also records examples that exercise less-used parts of your
 code, so the database may update even when no failing examples were found.
 
---------------
-File locations
---------------
-
-The default storage format is as a fairly opaque directory structure. Each test
-corresponds to a directory, and each example to a file within that directory.
-The standard location for it is ``.hypothesis/examples`` in your current working
-directory. You can override this by setting the
-:obj:`~hypothesis.settings.database` setting.
-
-If you have not configured a database and the default location is unusable
-(e.g. because you do not have read/write permission), Hypothesis will issue
-a warning and then fall back to an in-memory database.
-
 --------------------------------------------
 Upgrading Hypothesis and changing your tests
 --------------------------------------------
@@ -43,26 +29,30 @@ and not get wrong behaviour. When you upgrade Hypothesis, old data *might* be in
 this should happen transparently. It can never be the case that e.g. changing the strategy
 that generates an argument gives you data from the old strategy.
 
------------------------------
-Sharing your example database
------------------------------
+-------------------------------
+ExampleDatabase implementations
+-------------------------------
 
-.. note::
-    If specific examples are important for correctness you should use the
-    :func:`@example <hypothesis.example>` decorator, as the example database may discard entries due to
-    changes in your code or dependencies.  For most users, we therefore
-    recommend using the example database locally and possibly persisting it
-    between CI builds, but not tracking it under version control.
+Hypothesis' default :obj:`~hypothesis.settings.database` setting creates a
+:class:`~hypothesis.database.DirectoryBasedExampleDatabase` in your current working directory,
+under ``.hypothesis/examples``.  If this location is unusable, e.g. because you do not have
+read or write permissions, Hypothesis will emit a warning and fall back to an
+:class:`~hypothesis.database.InMemoryExampleDatabase`.
 
-The examples database can be shared simply by checking the directory into
-version control, for example with the following ``.gitignore``::
+Hypothesis provides the following :class:`~hypothesis.database.ExampleDatabase` implementations:
 
-    # Ignore files cached by Hypothesis...
-    .hypothesis/*
-    # except for the examples directory
-    !.hypothesis/examples/
+.. autoclass:: hypothesis.database.InMemoryExampleDatabase
+.. autoclass:: hypothesis.database.DirectoryBasedExampleDatabase
+.. autoclass:: hypothesis.database.ReadOnlyDatabase
+.. autoclass:: hypothesis.database.MultiplexedDatabase
+.. autoclass:: hypothesis.extra.redis.RedisExampleDatabase
 
-Like everything under ``.hypothesis/``, the examples directory will be
-transparently created on demand.  Unlike the other subdirectories,
-``examples/`` is designed to handle merges, deletes, etc if you just add the
-directory into git, mercurial, or any similar version control system.
+---------------------------------
+Defining your own ExampleDatabase
+---------------------------------
+
+You can define your :class:`~hypothesis.database.ExampleDatabase`, for example
+to use a shared datastore, with just a few methods:
+
+.. autoclass:: hypothesis.database.ExampleDatabase
+   :members:

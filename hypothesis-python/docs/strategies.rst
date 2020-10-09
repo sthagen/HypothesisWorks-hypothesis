@@ -15,7 +15,7 @@ If there's something missing which you think should be here, let us know!
     maintainers endorse a package.
 
 -------------------
-External Strategies
+External strategies
 -------------------
 
 Some packages provide strategies directly:
@@ -44,7 +44,7 @@ Others provide a function to infer a strategy from some other schema:
 
 
 -----------------
-Other Cool Things
+Other cool things
 -----------------
 
 :pypi:`schemathesis` is a tool for testing web applications built with `Open API / Swagger specifications <https://swagger.io/>`_.
@@ -73,9 +73,13 @@ fail - by trying all kinds of inputs and reporting whatever happens.
 
 :pypi:`pytest-subtesthack` functions as a workaround for :issue:`377`.
 
+:pypi:`returns` uses Hypothesis to verify that Higher Kinded Types correctly
+implement functor, applicative, monad, and other laws; allowing a declarative
+approach to be combined with traditional pythonic code.
+
 
 --------------------
-Writing an Extension
+Writing an extension
 --------------------
 
 *See* :gh-file:`CONTRIBUTING.rst` *for more information.*
@@ -98,3 +102,77 @@ We particularly encourage pull requests for new composable primitives that
 make implementing other strategies easier, or for widely used types in the
 standard library. Strategies for other things are also welcome; anything with
 external dependencies just goes in hypothesis.extra.
+
+
+.. _entry-points:
+
+--------------------------------------------------
+Registering strategies via setuptools entry points
+--------------------------------------------------
+
+If you would like to ship Hypothesis strategies for a custom type - either as
+part of the upstream library, or as a third-party extension, there's a catch:
+:func:`~hypothesis.strategies.from_type` only works after the corresponding
+call to :func:`~hypothesis.strategies.register_type_strategy`.  This means that
+either
+
+- you have to try importing Hypothesis to register the strategy when *your*
+  library is imported, though that's only useful at test time, or
+- the user has to call a 'register the strategies' helper that you provide
+  before running their tests
+
+`Entry points <https://amir.rachum.com/blog/2017/07/28/python-entry-points/>`__
+are Python's standard way of automating the latter: when you register a
+``"hypothesis"`` entry point in your ``setup.py``, we'll import and run it
+automatically when *hypothesis* is imported.  Nothing happens unless Hypothesis
+is already in use, and it's totally seamless for downstream users!
+
+Let's look at an example.  You start by adding a function somewhere in your
+package that does all the Hypothesis-related setup work:
+
+.. code-block:: python
+
+    # mymodule.py
+
+
+    class MyCustomType:
+        def __init__(self, x: int):
+            assert x >= 0, f"got {x}, but only positive numbers are allowed"
+            self.x = x
+
+
+    def _hypothesis_setup_hook():
+        import hypothesis.strategies as st
+
+        st.register_type_strategy(MyCustomType, st.integers(min_value=0))
+
+and then tell ``setuptools`` that this is your ``"hypothesis"`` entry point:
+
+.. code-block:: python
+
+    # setup.py
+
+    # You can list a module to import by dotted name
+    entry_points = {"hypothesis": ["_ = mymodule.a_submodule"]}
+
+    # Or name a specific function too, and Hypothesis will call it for you
+    entry_points = {"hypothesis": ["_ = mymodule:_hypothesis_setup_hook"]}
+
+And that's all it takes!
+
+
+Interaction with :pypi:`pytest-cov`
+-----------------------------------
+
+Because pytest does not load plugins from entrypoints in any particular order,
+using the Hypothesis entrypoint may import your module before :pypi:`pytest-cov`
+starts.  `This is a known issue <https://github.com/pytest-dev/pytest/issues/935>`__,
+but there are workarounds.
+
+You can use :command:`coverage run pytest ...` instead of :command:`pytest --cov ...`,
+opting out of the pytest plugin entirely.  Alternatively, you can ensure that Hypothesis
+is loaded after coverage measurement is started by disabling the entrypoint, and
+loading our pytest plugin from your ``conftest.py`` instead::
+
+    echo "pytest_plugins = ['hypothesis.extra.pytestplugin']\n" > tests/conftest.py
+    pytest -p "no:hypothesispytest" ...

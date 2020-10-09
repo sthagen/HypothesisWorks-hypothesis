@@ -13,14 +13,25 @@
 #
 # END HEADER
 
+import abc
 import binascii
 import os
+import sys
 import warnings
 from hashlib import sha384
+from typing import Iterable
 
 from hypothesis.configuration import mkdir_p, storage_directory
 from hypothesis.errors import HypothesisException, HypothesisWarning
 from hypothesis.utils.conventions import not_set
+
+__all__ = [
+    "DirectoryBasedExampleDatabase",
+    "ExampleDatabase",
+    "InMemoryExampleDatabase",
+    "MultiplexedDatabase",
+    "ReadOnlyDatabase",
+]
 
 
 def _usable_dir(path):
@@ -59,43 +70,66 @@ def _db_for_path(path=None):
     return DirectoryBasedExampleDatabase(str(path))
 
 
-class EDMeta(type):
+class _EDMeta(abc.ABCMeta):
     def __call__(self, *args, **kwargs):
         if self is ExampleDatabase:
             return _db_for_path(*args, **kwargs)
         return super().__call__(*args, **kwargs)
 
 
-class ExampleDatabase(metaclass=EDMeta):
-    """Interface class for storage systems.
+# This __call__ method is picked up by Sphinx as the signature of all ExampleDatabase
+# subclasses, which is accurate, reasonable, and unhelpful.  Fortunately Sphinx
+# maintains a list of metaclass-call-methods to ignore, and while they would prefer
+# not to maintain it upstream (https://github.com/sphinx-doc/sphinx/pull/8262) we
+# can insert ourselves here.
+#
+# This code only runs if Sphinx has already been imported; and it would live in our
+# docs/conf.py except that we would also like it to work for anyone documenting
+# downstream ExampleDatabase subclasses too.
+if "sphinx" in sys.modules:  # pragma: no cover
+    try:
+        from sphinx.ext.autodoc import _METACLASS_CALL_BLACKLIST
 
-    A key -> multiple distinct values mapping.
+        _METACLASS_CALL_BLACKLIST.append("hypothesis.database._EDMeta.__call__")
+    except Exception:
+        pass
 
-    Keys and values are binary data.
+
+class ExampleDatabase(metaclass=_EDMeta):
+    """An abstract base class for storing examples in Hypothesis' internal format.
+
+    An ExampleDatabase maps each ``bytes`` key to many distinct ``bytes``
+    values, like a ``Mapping[bytes, AbstractSet[bytes]]``.
     """
 
-    def save(self, key, value):
+    @abc.abstractmethod
+    def save(self, key: bytes, value: bytes) -> None:
         """Save ``value`` under ``key``.
 
-        If this value is already present for this key, silently do
-        nothing
+        If this value is already present for this key, silently do nothing.
         """
         raise NotImplementedError("%s.save" % (type(self).__name__))
 
-    def delete(self, key, value):
+    @abc.abstractmethod
+    def fetch(self, key: bytes) -> Iterable[bytes]:
+        """Return an iterable over all values matching this key."""
+        raise NotImplementedError("%s.fetch" % (type(self).__name__))
+
+    @abc.abstractmethod
+    def delete(self, key: bytes, value: bytes) -> None:
         """Remove this value from this key.
 
         If this value is not present, silently do nothing.
         """
         raise NotImplementedError("%s.delete" % (type(self).__name__))
 
-    def move(self, src, dest, value):
-        """Move value from key src to key dest. Equivalent to delete(src,
-        value) followed by save(src, value) but may have a more efficient
-        implementation.
+    def move(self, src: bytes, dest: bytes, value: bytes) -> None:
+        """Move ``value`` from key ``src`` to key ``dest``. Equivalent to
+        ``delete(src, value)`` followed by ``save(src, value)``, but may
+        have a more efficient implementation.
 
-        Note that value will be inserted at dest regardless of whether
-        it is currently present at src.
+        Note that ``value`` will be inserted at ``dest`` regardless of whether
+        it is currently present at ``src``.
         """
         if src == dest:
             self.save(src, value)
@@ -103,33 +137,29 @@ class ExampleDatabase(metaclass=EDMeta):
         self.delete(src, value)
         self.save(dest, value)
 
-    def fetch(self, key):
-        """Return all values matching this key."""
-        raise NotImplementedError("%s.fetch" % (type(self).__name__))
-
-    def close(self):
-        """Clear up any resources associated with this database."""
-        raise NotImplementedError("%s.close" % (type(self).__name__))
-
 
 class InMemoryExampleDatabase(ExampleDatabase):
+    """A non-persistent example database, implemented in terms of a dict of sets.
+
+    This can be useful if you call a test function several times in a single
+    session, or for testing other database implementations, but because it
+    does not persist between runs we do not recommend it for general use.
+    """
+
     def __init__(self):
         self.data = {}
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "InMemoryExampleDatabase(%r)" % (self.data,)
 
-    def fetch(self, key):
+    def fetch(self, key: bytes) -> Iterable[bytes]:
         yield from self.data.get(key, ())
 
-    def save(self, key, value):
+    def save(self, key: bytes, value: bytes) -> None:
         self.data.setdefault(key, set()).add(bytes(value))
 
-    def delete(self, key, value):
+    def delete(self, key: bytes, value: bytes) -> None:
         self.data.get(key, set()).discard(bytes(value))
-
-    def close(self):
-        pass
 
 
 def _hash(key):
@@ -137,15 +167,30 @@ def _hash(key):
 
 
 class DirectoryBasedExampleDatabase(ExampleDatabase):
-    def __init__(self, path):
+    """Use a directory to store Hypothesis examples as files.
+
+    Each test corresponds to a directory, and each example to a file within that
+    directory.  While the contents are fairly opaque, a
+    ``DirectoryBasedExampleDatabase`` can be shared by checking the directory
+    into version control, for example with the following ``.gitignore``::
+
+        # Ignore files cached by Hypothesis...
+        .hypothesis/*
+        # except for the examples directory
+        !.hypothesis/examples/
+
+    Note however that this only makes sense if you also pin to an exact version of
+    Hypothesis, and we would usually recommend implementing a shared database with
+    a network datastore - see :class:`~hypothesis.database.ExampleDatabase`, and
+    the :class:`~hypothesis.database.MultiplexedDatabase` helper.
+    """
+
+    def __init__(self, path: str) -> None:
         self.path = path
-        self.keypaths = {}
+        self.keypaths = {}  # type: dict
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "DirectoryBasedExampleDatabase(%r)" % (self.path,)
-
-    def close(self):
-        pass
 
     def _key_path(self, key):
         try:
@@ -159,7 +204,7 @@ class DirectoryBasedExampleDatabase(ExampleDatabase):
     def _value_path(self, key, value):
         return os.path.join(self._key_path(key), _hash(value))
 
-    def fetch(self, key):
+    def fetch(self, key: bytes) -> Iterable[bytes]:
         kp = self._key_path(key)
         if not os.path.exists(kp):
             return
@@ -170,7 +215,7 @@ class DirectoryBasedExampleDatabase(ExampleDatabase):
             except OSError:
                 pass
 
-    def save(self, key, value):
+    def save(self, key: bytes, value: bytes) -> None:
         # Note: we attempt to create the dir in question now. We
         # already checked for permissions, but there can still be other issues,
         # e.g. the disk is full
@@ -187,7 +232,7 @@ class DirectoryBasedExampleDatabase(ExampleDatabase):
                 os.unlink(tmpname)
             assert not os.path.exists(tmpname)
 
-    def move(self, src, dest, value):
+    def move(self, src: bytes, dest: bytes, value: bytes) -> None:
         if src == dest:
             self.save(src, value)
             return
@@ -197,8 +242,90 @@ class DirectoryBasedExampleDatabase(ExampleDatabase):
             self.delete(src, value)
             self.save(dest, value)
 
-    def delete(self, key, value):
+    def delete(self, key: bytes, value: bytes) -> None:
         try:
             os.unlink(self._value_path(key, value))
         except OSError:
             pass
+
+
+class ReadOnlyDatabase(ExampleDatabase):
+    """A wrapper to make the given database read-only.
+
+    The implementation passes through ``fetch``, and turns ``save``, ``delete``, and
+    ``move`` into silent no-ops.
+
+    Note that this disables Hypothesis' automatic discarding of stale examples.
+    It is designed to allow local machines to access a shared database (e.g. from CI
+    servers), without propagating changes back from a local or in-development branch.
+    """
+
+    def __init__(self, db: ExampleDatabase) -> None:
+        assert isinstance(db, ExampleDatabase)
+        self._wrapped = db
+
+    def __repr__(self) -> str:
+        return f"ReadOnlyDatabase({self._wrapped!r})"
+
+    def fetch(self, key: bytes) -> Iterable[bytes]:
+        yield from self._wrapped.fetch(key)
+
+    def save(self, key: bytes, value: bytes) -> None:
+        pass
+
+    def delete(self, key: bytes, value: bytes) -> None:
+        pass
+
+
+class MultiplexedDatabase(ExampleDatabase):
+    """A wrapper around multiple databases.
+
+    Each ``save``, ``fetch``, ``move``, or ``delete`` operation will be run against
+    all of the wrapped databases.  ``fetch`` does not yield duplicate values, even
+    if the same value is present in two or more of the wrapped databases.
+
+    This combines well with a :class:`ReadOnlyDatabase`, as follows:
+
+    .. code-block:: python
+
+        local = DirectoryBasedExampleDatabase("/tmp/hypothesis/examples/")
+        shared = CustomNetworkDatabase()
+
+        settings.register_profile("ci", database=shared)
+        settings.register_profile(
+            "dev", database=MultiplexedDatabase(local, ReadOnlyDatabase(shared))
+        )
+        settings.load_profile("ci" if os.environ.get("CI") else "dev")
+
+    So your CI system or fuzzing runs can populate a central shared database;
+    while local runs on development machines can reproduce any failures from CI
+    but will only cache their own failures locally and cannot remove examples
+    from the shared database.
+    """
+
+    def __init__(self, *dbs: ExampleDatabase) -> None:
+        assert all(isinstance(db, ExampleDatabase) for db in dbs)
+        self._wrapped = dbs
+
+    def __repr__(self) -> str:
+        return "MultiplexedDatabase({})".format(", ".join(map(repr, self._wrapped)))
+
+    def fetch(self, key: bytes) -> Iterable[bytes]:
+        seen = set()
+        for db in self._wrapped:
+            for value in db.fetch(key):
+                if value not in seen:
+                    yield value
+                    seen.add(value)
+
+    def save(self, key: bytes, value: bytes) -> None:
+        for db in self._wrapped:
+            db.save(key, value)
+
+    def delete(self, key: bytes, value: bytes) -> None:
+        for db in self._wrapped:
+            db.delete(key, value)
+
+    def move(self, src: bytes, dest: bytes, value: bytes) -> None:
+        for db in self._wrapped:
+            db.move(src, dest, value)

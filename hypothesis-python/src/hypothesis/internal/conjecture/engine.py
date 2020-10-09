@@ -541,7 +541,8 @@ class ConjectureRunner:
             corpus = sorted(
                 self.settings.database.fetch(self.database_key), key=sort_key
             )
-            desired_size = max(2, ceil(0.1 * self.settings.max_examples))
+            factor = 0.1 if (Phase.generate in self.settings.phases) else 1
+            desired_size = max(2, ceil(factor * self.settings.max_examples))
 
             if len(corpus) < desired_size:
                 extra_corpus = list(self.settings.database.fetch(self.secondary_key))
@@ -1072,7 +1073,7 @@ class ConjectureRunner:
         result = None
 
         data = self.new_conjecture_data(
-            prefix=max((buffer, dummy_data.buffer), key=len), max_length=max_length,
+            prefix=max((buffer, dummy_data.buffer), key=len), max_length=max_length
         )
         self.test_function(data)
         result = check_result(data.as_result())

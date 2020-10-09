@@ -17,7 +17,7 @@ import sys
 import unittest
 from functools import partial
 from inspect import Parameter, signature
-from typing import Type, Union
+from typing import Optional, Type, Union
 
 from django import forms as df, test as dt
 from django.core.exceptions import ValidationError
@@ -54,7 +54,7 @@ class TransactionTestCase(HypothesisTestCase, dt.TransactionTestCase):
     pass
 
 
-@st.defines_strategy
+@st.defines_strategy()
 def from_model(
     *model: Type[dm.Model], **field_strategies: Union[st.SearchStrategy, InferType]
 ) -> st.SearchStrategy:
@@ -146,11 +146,11 @@ def _models_impl(draw, strat):
         reject()
 
 
-@st.defines_strategy
+@st.defines_strategy()
 def from_form(
     form: Type[df.Form],
-    form_kwargs: dict = None,
-    **field_strategies: Union[st.SearchStrategy, InferType]
+    form_kwargs: Optional[dict] = None,
+    **field_strategies: Union[st.SearchStrategy, InferType],
 ) -> st.SearchStrategy[df.Form]:
     """Return a strategy for examples of ``form``.
 

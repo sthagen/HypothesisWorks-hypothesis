@@ -26,6 +26,7 @@ import os
 import sys
 import typing
 import uuid
+from pathlib import PurePath
 from types import FunctionType
 
 from hypothesis import strategies as st
@@ -57,8 +58,8 @@ except ImportError:
 
 def type_sorting_key(t):
     """Minimise to None, then non-container types, then container types."""
-    if not is_a_type(t):
-        raise InvalidArgument("thing=%s must be a type" % (t,))
+    if not is_a_type(t):  # This branch is for Python < 3.8
+        raise InvalidArgument("thing=%s must be a type" % (t,))  # pragma: no cover
     if t is None or t is type(None):  # noqa: E721
         return (-1, repr(t))
     if not isinstance(t, type):  # pragma: no cover
@@ -72,9 +73,8 @@ def try_issubclass(thing, superclass):
     superclass = getattr(superclass, "__origin__", None) or superclass
     try:
         return issubclass(thing, superclass)
-    except (AttributeError, TypeError):  # pragma: no cover
-        # Some types can't be the subject or object of an instance or
-        # subclass check under Python 3.5
+    except (AttributeError, TypeError):
+        # Some types can't be the subject or object of an instance or subclass check
         return False
 
 
@@ -84,10 +84,8 @@ def is_a_new_type(thing):
     return (
         hasattr(thing, "__supertype__")
         and (
-            hasattr(typing, "NewType")
-            and getattr(thing, "__module__", None) == "typing"
-            or hasattr(typing_extensions, "NewType")
-            and getattr(thing, "__module__", None) == "typing_extensions"
+            getattr(thing, "__module__", None) == "typing"
+            or getattr(thing, "__module__", None) == "typing_extensions"
         )
         and inspect.isfunction(thing)
     )
@@ -131,24 +129,41 @@ def is_generic_type(type_):
     )
 
 
+def _try_import_forward_ref(thing, bound):  # pragma: no cover
+    """
+    Tries to import a real bound type from ``TypeVar`` bound to a ``ForwardRef``.
+
+    This function is very "magical" to say the least, please don't use it.
+    This function fully covered, but is excluded from coverage
+    because we can only cover each path in a separate python version.
+    """
+    try:
+        return typing._eval_type(bound, vars(sys.modules[thing.__module__]), None)
+    except (KeyError, AttributeError, NameError):
+        if (
+            isinstance(thing, typing.TypeVar)
+            and getattr(thing, "__module__", None) == "typing"
+        ):
+            raise ResolutionFailed(
+                "It looks like you're using a TypeVar bound to a ForwardRef on Python "
+                "3.6, which is not supported - try ugrading to Python 3.7 or later."
+            ) from None
+        # We fallback to `ForwardRef` instance, you can register it as a type as well:
+        # >>> from typing import ForwardRef
+        # >>> from hypothesis import strategies as st
+        # >>> st.register_type_strategy(ForwardRef('YourType'), your_strategy)
+        return bound
+
+
 def from_typing_type(thing):
     # We start with special-case support for Union and Tuple - the latter
     # isn't actually a generic type. Then we handle Literal since it doesn't
-    # support `isinstance`. Support for Callable may be added to this section
-    # later.
+    # support `isinstance`.
+    #
     # We then explicitly error on non-Generic types, which don't carry enough
     # information to sensibly resolve to strategies at runtime.
-    # Finally, we run a variation of the subclass lookup in st.from_type
+    # Finally, we run a variation of the subclass lookup in `st.from_type`
     # among generic types in the lookup.
-    #
-    # Under 3.6 Union is handled directly in st.from_type, as the argument is
-    # not an instance of `type`. However, under Python 3.5 Union *is* a type
-    # and we have to handle it here, including failing if it has no parameters.
-    if hasattr(thing, "__union_params__"):  # pragma: no cover
-        args = sorted(thing.__union_params__ or (), key=type_sorting_key)
-        if not args:
-            raise ResolutionFailed("Cannot resolve Union of no types.")
-        return st.one_of([st.from_type(t) for t in args])
     if getattr(thing, "__origin__", None) == tuple or isinstance(
         thing, getattr(typing, "TupleMeta", ())
     ):
@@ -163,11 +178,9 @@ def from_typing_type(thing):
         elif len(elem_types) == 1 and elem_types[0] == ():
             return st.tuples()  # Empty tuple; see issue #1583
         return st.tuples(*map(st.from_type, elem_types))
-    if (
-        hasattr(typing, "Final") and getattr(thing, "__origin__", None) == typing.Final
-    ):  # pragma: no cover  # new in Python 3.8
+    if hasattr(typing, "Final") and getattr(thing, "__origin__", None) == typing.Final:
         return st.one_of([st.from_type(t) for t in thing.__args__])
-    if is_typing_literal(thing):  # pragma: no cover  # new in Python 3.8
+    if is_typing_literal(thing):
         args_dfs_stack = list(thing.__args__)
         literals = []
         while args_dfs_stack:
@@ -177,25 +190,6 @@ def from_typing_type(thing):
             else:
                 literals.append(arg)
         return st.sampled_from(literals)
-    if isinstance(thing, typing.TypeVar):
-        if getattr(thing, "__bound__", None) is not None:
-            strat = unwrap_strategies(st.from_type(thing.__bound__))
-            if not isinstance(strat, OneOfStrategy):
-                return strat
-            # The bound was a union, or we resolved it as a union of subtypes,
-            # so we need to unpack the strategy to ensure consistency across uses.
-            # This incantation runs a sampled_from over the strategies inferred for
-            # each part of the union, wraps that in shared so that we only generate
-            # from one type per testcase, and flatmaps that back to instances.
-            return st.shared(
-                st.sampled_from(strat.original_strategies), key="typevar=%r" % (thing,)
-            ).flatmap(lambda s: s)
-        if getattr(thing, "__constraints__", None):
-            return st.shared(
-                st.sampled_from(thing.__constraints__), key="typevar=%r" % (thing,)
-            ).flatmap(st.from_type)
-        # Constraints may be None or () on various Python versions.
-        return st.text()  # An arbitrary type for the typevar
     # Now, confirm that we're dealing with a generic type as we expected
     if not isinstance(thing, typing_root_type):  # pragma: no cover
         raise ResolutionFailed("Cannot resolve %s to a strategy" % (thing,))
@@ -208,7 +202,7 @@ def from_typing_type(thing):
         typing.Hashable is not collections.abc.Hashable
         and origin in vars(collections.abc).values()
         and len(getattr(thing, "__args__", None) or []) == 0
-    ):  # pragma: no cover  # impossible on 3.6 where we measure coverage.
+    ):
         return st.from_type(origin)
 
     # Parametrised generic types have their __origin__ attribute set to the
@@ -220,13 +214,12 @@ def from_typing_type(thing):
         if is_generic_type(k) and try_issubclass(k, thing)
     }
     if typing.Dict in mapping:
-        # The subtype relationships between generic and concrete View types
-        # are sometimes inconsistent under Python 3.5, so we pop them out to
-        # preserve our invariant that all examples of from_type(T) are
-        # instances of type T - and simplify the strategy for abstract types
-        # such as Container
-        for t in (typing.KeysView, typing.ValuesView, typing.ItemsView):
-            mapping.pop(t, None)
+        # ItemsView can cause test_lookup.py::test_specialised_collection_types
+        # to fail, due to weird isinstance behaviour around the elements.
+        mapping.pop(typing.ItemsView, None)
+        if sys.version_info[:2] == (3, 6):  # pragma: no cover
+            # `isinstance(dict().values(), Container) is False` on py36 only -_-
+            mapping.pop(typing.ValuesView, None)
     if len(mapping) > 1:
         # issubclass treats bytestring as a kind of sequence, which it is,
         # but treating it as such breaks everything else when it is presumed
@@ -240,8 +233,6 @@ def from_typing_type(thing):
         elem_type = (getattr(thing, "__args__", None) or ["not int"])[0]
         if getattr(elem_type, "__origin__", None) is typing.Union:
             union_elems = elem_type.__args__
-        elif hasattr(elem_type, "__union_params__"):  # pragma: no cover
-            union_elems = elem_type.__union_params__  # python 3.5 only
         else:
             union_elems = ()
         if not any(
@@ -353,6 +344,8 @@ _global_type_lookup[type] = st.sampled_from(
     [type(None)] + sorted(_global_type_lookup, key=str)
 )
 
+if sys.version_info[:2] >= (3, 6):  # pragma: no branch
+    _global_type_lookup[os.PathLike] = st.builds(PurePath, st.text())
 if sys.version_info[:2] >= (3, 9):  # pragma: no cover
     # subclass of MutableMapping, and in Python 3.9 we resolve to a union
     # which includes this... but we don't actually ever want to build one.
@@ -425,13 +418,11 @@ _global_type_lookup.update(
             # As with Reversible, we tuplize this for compatibility with Hashable.
             st.lists(st.integers(0, 255)).map(tuple),  # type: ignore
         ),
-        # xIO are only available in .io on Python 3.5, but available directly
-        # as typing.*IO from 3.6 onwards and mypy 0.730 errors on the compat form.
-        typing.io.BinaryIO: st.builds(io.BytesIO, st.binary()),  # type: ignore
-        typing.io.TextIO: st.builds(io.StringIO, st.text()),  # type: ignore
+        typing.BinaryIO: st.builds(io.BytesIO, st.binary()),
+        typing.TextIO: st.builds(io.StringIO, st.text()),
     }
 )
-if hasattr(typing, "SupportsIndex"):  # pragma: no cover  # new in Python 3.8
+if hasattr(typing, "SupportsIndex"):  # pragma: no branch  # new in Python 3.8
     _global_type_lookup[typing.SupportsIndex] = st.integers() | st.booleans()  # type: ignore
 
 
@@ -450,8 +441,9 @@ def register(type_, fallback=None, *, module=typing):
 
         @functools.wraps(func)
         def really_inner(thing):
+            # This branch is for Python < 3.8, when __args__ was not always tracked
             if getattr(thing, "__args__", None) is None:
-                return fallback
+                return fallback  # pragma: no cover
             return func(thing)
 
         _global_type_lookup[type_] = really_inner
@@ -460,25 +452,23 @@ def register(type_, fallback=None, *, module=typing):
     return inner
 
 
-@register("Type")
+@register(typing.Type)
 @register("Type", module=typing_extensions)
 def resolve_Type(thing):
     if getattr(thing, "__args__", None) is None:
-        return st.just(type)
+        # This branch is for Python < 3.8, when __args__ was not always tracked
+        return st.just(type)  # pragma: no cover
     args = (thing.__args__[0],)
     if getattr(args[0], "__origin__", None) is typing.Union:
         args = args[0].__args__
-    elif hasattr(args[0], "__union_params__"):  # pragma: no cover
-        args = args[0].__union_params__
-    if isinstance(ForwardRef, type):  # pragma: no cover
-        # Duplicate check from from_type here - only paying when needed.
-        for a in args:
-            if type(a) == ForwardRef:
-                raise ResolutionFailed(
-                    "thing=%s cannot be resolved.  Upgrading to "
-                    "python>=3.6 may fix this problem via improvements "
-                    "to the typing module." % (thing,)
-                )
+    # Duplicate check from from_type here - only paying when needed.
+    for a in args:  # pragma: no cover  # only on Python 3.6
+        if type(a) == ForwardRef:
+            raise ResolutionFailed(
+                "thing=%s cannot be resolved.  Upgrading to "
+                "python>=3.6 may fix this problem via improvements "
+                "to the typing module." % (thing,)
+            )
     return st.sampled_from(sorted(args, key=type_sorting_key))
 
 
@@ -530,7 +520,7 @@ def resolve_Dict(thing):
     )
 
 
-@register("DefaultDict", st.builds(collections.defaultdict))
+@register(typing.DefaultDict, st.builds(collections.defaultdict))
 @register("DefaultDict", st.builds(collections.defaultdict), module=typing_extensions)
 def resolve_DefaultDict(thing):
     return resolve_Dict(thing).map(lambda d: collections.defaultdict(None, d))
@@ -571,3 +561,34 @@ def resolve_Callable(thing):
         like=(lambda: None) if len(thing.__args__) == 1 else (lambda *a, **k: None),
         returns=st.from_type(thing.__args__[-1]),
     )
+
+
+@register(typing.TypeVar)
+def resolve_TypeVar(thing):
+    type_var_key = "typevar=%r" % (thing,)
+
+    if getattr(thing, "__bound__", None) is not None:
+        bound = thing.__bound__
+        if isinstance(bound, ForwardRef):
+            bound = _try_import_forward_ref(thing, bound)
+        strat = unwrap_strategies(st.from_type(bound))
+        if not isinstance(strat, OneOfStrategy):
+            return strat
+        # The bound was a union, or we resolved it as a union of subtypes,
+        # so we need to unpack the strategy to ensure consistency across uses.
+        # This incantation runs a sampled_from over the strategies inferred for
+        # each part of the union, wraps that in shared so that we only generate
+        # from one type per testcase, and flatmaps that back to instances.
+        return st.shared(
+            st.sampled_from(strat.original_strategies), key=type_var_key
+        ).flatmap(lambda s: s)
+
+    builtin_scalar_types = [type(None), bool, int, float, str, bytes]
+    return st.shared(
+        st.sampled_from(
+            # Constraints may be None or () on various Python versions.
+            getattr(thing, "__constraints__", None)
+            or builtin_scalar_types,
+        ),
+        key=type_var_key,
+    ).flatmap(st.from_type)

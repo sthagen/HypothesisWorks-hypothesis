@@ -15,7 +15,7 @@
 
 import math
 import re
-from typing import Any, NamedTuple, Sequence, Tuple, Union
+from typing import Any, Mapping, NamedTuple, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -32,58 +32,106 @@ from hypothesis.utils.conventions import UniqueIdentifier, not_set
 Shape = Tuple[int, ...]
 # flake8 and mypy disagree about `ellipsis` (the type of `...`), and hence:
 BasicIndex = Tuple[Union[int, slice, "ellipsis", np.newaxis], ...]  # noqa: F821
-BroadcastableShapes = NamedTuple(
-    "BroadcastableShapes",
-    [("input_shapes", Tuple[Shape, ...]), ("result_shape", Shape)],
-)
-
 TIME_RESOLUTIONS = tuple("Y  M  D  h  m  s  ms  us  ns  ps  fs  as".split())
 
 
-@st.defines_strategy_with_reusable_values
-def from_dtype(dtype: np.dtype) -> st.SearchStrategy[Any]:
-    """Creates a strategy which can generate any value of the given dtype."""
+class BroadcastableShapes(NamedTuple):
+    input_shapes: Tuple[Shape, ...]
+    result_shape: Shape
+
+
+@st.defines_strategy(force_reusable_values=True)
+def from_dtype(
+    dtype: np.dtype,
+    *,
+    alphabet: Optional[st.SearchStrategy[str]] = None,
+    min_size: int = 0,
+    max_size: Optional[int] = None,
+    min_value: Union[int, float, None] = None,
+    max_value: Union[int, float, None] = None,
+    allow_nan: Optional[bool] = None,
+    allow_infinity: Optional[bool] = None,
+    exclude_min: Optional[bool] = None,
+    exclude_max: Optional[bool] = None,
+) -> st.SearchStrategy[Any]:
+    """Creates a strategy which can generate any value of the given dtype.
+
+    Compatible ``**kwargs`` are passed to the inferred strategy function for
+    integers, floats, and strings.  This allows you to customise the min and max
+    values, control the length or contents of strings, or exclude non-finite
+    numbers.  This is particularly useful when kwargs are passed through from
+    :func:`arrays` which allow a variety of numeric dtypes, as it seamlessly
+    handles the ``width`` or representable bounds for you.  See :issue:`2552`
+    for more detail.
+    """
     check_type(np.dtype, dtype, "dtype")
+    kwargs = {k: v for k, v in locals().items() if k != "dtype" and v is not None}
+
     # Compound datatypes, eg 'f4,f4,f4'
     if dtype.names is not None:
         # mapping np.void.type over a strategy is nonsense, so return now.
-        return st.tuples(*[from_dtype(dtype.fields[name][0]) for name in dtype.names])
+        subs = [from_dtype(dtype.fields[name][0], **kwargs) for name in dtype.names]
+        return st.tuples(*subs)
 
     # Subarray datatypes, eg '(2, 3)i4'
     if dtype.subdtype is not None:
         subtype, shape = dtype.subdtype
-        return arrays(subtype, shape)
+        return arrays(subtype, shape, elements=kwargs)
+
+    def compat_kw(*args, **kw):
+        """Update default args to the strategy with user-supplied keyword args."""
+        assert {"min_value", "max_value", "max_size"}.issuperset(kw)
+        for key in set(kwargs).intersection(kw):
+            msg = f"dtype {dtype!r} requires {key}={kwargs[key]!r} to be %s {kw[key]!r}"
+            if kw[key] is not None:
+                if key.startswith("min_") and kw[key] > kwargs[key]:
+                    raise InvalidArgument(msg % ("at least",))
+                elif key.startswith("max_") and kw[key] < kwargs[key]:
+                    raise InvalidArgument(msg % ("at most",))
+        kw.update({k: v for k, v in kwargs.items() if k in args or k in kw})
+        return kw
 
     # Scalar datatypes
     if dtype.kind == "b":
         result = st.booleans()  # type: SearchStrategy[Any]
     elif dtype.kind == "f":
-        if dtype.itemsize == 2:
-            result = st.floats(width=16)
-        elif dtype.itemsize == 4:
-            result = st.floats(width=32)
-        else:
-            result = st.floats()
+        result = st.floats(
+            width=8 * dtype.itemsize,
+            **compat_kw(
+                "min_value",
+                "max_value",
+                "allow_nan",
+                "allow_infinity",
+                "exclude_min",
+                "exclude_max",
+            ),
+        )
     elif dtype.kind == "c":
+        # If anyone wants to add a `width` argument to `complex_numbers()`, we would
+        # accept a pull request and add passthrough support for magnitude bounds,
+        # but it's a low priority otherwise.
         if dtype.itemsize == 8:
-            float32 = st.floats(width=32)
+            float32 = st.floats(width=32, **compat_kw("allow_nan", "allow_infinity"))
             result = st.builds(complex, float32, float32)
         else:
-            result = st.complex_numbers()
+            result = st.complex_numbers(**compat_kw("allow_nan", "allow_infinity"))
     elif dtype.kind in ("S", "a"):
         # Numpy strings are null-terminated; only allow round-trippable values.
         # `itemsize == 0` means 'fixed length determined at array creation'
-        result = st.binary(max_size=dtype.itemsize or None).filter(
+        max_size = dtype.itemsize or None
+        result = st.binary(**compat_kw("min_size", max_size=max_size)).filter(
             lambda b: b[-1:] != b"\0"
         )
     elif dtype.kind == "u":
-        result = st.integers(min_value=0, max_value=2 ** (8 * dtype.itemsize) - 1)
+        kw = compat_kw(min_value=0, max_value=2 ** (8 * dtype.itemsize) - 1)
+        result = st.integers(**kw)
     elif dtype.kind == "i":
         overflow = 2 ** (8 * dtype.itemsize - 1)
-        result = st.integers(min_value=-overflow, max_value=overflow - 1)
+        result = st.integers(**compat_kw(min_value=-overflow, max_value=overflow - 1))
     elif dtype.kind == "U":
         # Encoded in UTF-32 (four bytes/codepoint) and null-terminated
-        result = st.text(max_size=(dtype.itemsize or 0) // 4 or None).filter(
+        max_size = (dtype.itemsize or 0) // 4 or None
+        result = st.text(**compat_kw("alphabet", "min_size", max_size=max_size)).filter(
             lambda b: b[-1:] != "\0"
         )
     elif dtype.kind in ("m", "M"):
@@ -96,7 +144,7 @@ def from_dtype(dtype: np.dtype) -> st.SearchStrategy[Any]:
             res = st.sampled_from(TIME_RESOLUTIONS)
         result = st.builds(dtype.type, st.integers(-(2 ** 63), 2 ** 63 - 1), res)
     else:
-        raise InvalidArgument("No strategy inference for {}".format(dtype))
+        raise InvalidArgument(f"No strategy inference for {dtype}")
     return result.map(dtype.type)
 
 
@@ -278,7 +326,11 @@ class ArrayStrategy(SearchStrategy):
                 )
             result = out
 
-        return result.reshape(self.shape)
+        result = result.reshape(self.shape).copy()
+
+        assert result.base is None
+
+        return result
 
 
 @check_function
@@ -293,15 +345,15 @@ def fill_for(elements, unique, fill, name=""):
     return fill
 
 
-@st.defines_strategy
+@st.defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def arrays(
     dtype: Any,
     shape: Union[int, Shape, st.SearchStrategy[Shape]],
     *,
-    elements: st.SearchStrategy[Any] = None,
-    fill: st.SearchStrategy[Any] = None,
-    unique: bool = False
+    elements: Optional[Union[SearchStrategy, Mapping[str, Any]]] = None,
+    fill: Optional[st.SearchStrategy[Any]] = None,
+    unique: bool = False,
 ) -> st.SearchStrategy[np.ndarray]:
     r"""Returns a strategy for generating :class:`numpy:numpy.ndarray`\ s.
 
@@ -313,8 +365,7 @@ def arrays(
     * ``elements`` is a strategy for generating values to put in the array.
       If it is None a suitable value will be inferred based on the dtype,
       which may give any legal value (including eg ``NaN`` for floats).
-      If you have more specific requirements, you should supply your own
-      elements strategy.
+      If a mapping, it will be passed as ``**kwargs`` to ``from_dtype()``
     * ``fill`` is a strategy that may be used to generate a single background
       value for the array. If None, a suitable default will be inferred
       based on the other arguments. If set to
@@ -387,7 +438,7 @@ def arrays(
         )
     # From here on, we're only dealing with values and it's relatively simple.
     dtype = np.dtype(dtype)
-    if elements is None:
+    if elements is None or isinstance(elements, Mapping):
         if dtype.kind in ("m", "M") and "[" not in dtype.str:
             # For datetime and timedelta dtypes, we have a tricky situation -
             # because they *may or may not* specify a unit as part of the dtype.
@@ -398,7 +449,7 @@ def arrays(
                 .map((dtype.str + "[{}]").format)
                 .flatmap(lambda d: arrays(d, shape=shape, fill=fill, unique=unique))
             )
-        elements = from_dtype(dtype)
+        elements = from_dtype(dtype, **(elements or {}))
     check_strategy(elements, "elements")
     if isinstance(shape, int):
         shape = (shape,)
@@ -412,10 +463,14 @@ def arrays(
     return ArrayStrategy(elements, shape, dtype, fill, unique)
 
 
-@st.defines_strategy
+@st.defines_strategy()
 @deprecated_posargs
 def array_shapes(
-    *, min_dims: int = 1, max_dims: int = None, min_side: int = 1, max_side: int = None
+    *,
+    min_dims: int = 1,
+    max_dims: Optional[int] = None,
+    min_side: int = 1,
+    max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
     """Return a strategy for array shapes (tuples of int >= 1)."""
     check_type(int, min_dims, "min_dims")
@@ -444,7 +499,7 @@ def array_shapes(
     ).map(tuple)
 
 
-@st.defines_strategy
+@st.defines_strategy()
 def scalar_dtypes() -> st.SearchStrategy[np.dtype]:
     """Return a strategy that can return any non-flexible scalar dtype."""
     return st.one_of(
@@ -459,7 +514,7 @@ def scalar_dtypes() -> st.SearchStrategy[np.dtype]:
 
 
 def defines_dtype_strategy(strat: T) -> T:
-    @st.defines_strategy
+    @st.defines_strategy()
     @proxies(strat)
     def inner(*args, **kwargs):
         return strat(*args, **kwargs).map(np.dtype)
@@ -669,7 +724,7 @@ def array_dtypes(
     *,
     min_size: int = 1,
     max_size: int = 5,
-    allow_subarrays: bool = False
+    allow_subarrays: bool = False,
 ) -> st.SearchStrategy[np.dtype]:
     """Return a strategy for generating array (compound) dtypes, with members
     drawn from the given subtype strategy."""
@@ -699,13 +754,13 @@ def array_dtypes(
     ).filter(_no_title_is_name_of_a_titled_field)
 
 
-@st.defines_strategy
+@st.defines_strategy()
 @deprecated_posargs
 def nested_dtypes(
     subtype_strategy: st.SearchStrategy[np.dtype] = scalar_dtypes(),
     *,
     max_leaves: int = 10,
-    max_itemsize: int = None
+    max_itemsize: Optional[int] = None,
 ) -> st.SearchStrategy[np.dtype]:
     """Return the most-general dtype strategy.
 
@@ -722,10 +777,13 @@ def nested_dtypes(
     ).filter(lambda d: max_itemsize is None or d.itemsize <= max_itemsize)
 
 
-@st.defines_strategy
+@st.defines_strategy()
 @deprecated_posargs
 def valid_tuple_axes(
-    ndim: int, *, min_size: int = 0, max_size: int = None
+    ndim: int,
+    *,
+    min_size: int = 0,
+    max_size: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
     """Return a strategy for generating permissible tuple-values for the
     ``axis`` argument for a numpy sequential function (e.g.
@@ -771,15 +829,15 @@ def valid_tuple_axes(
     ).map(tuple)
 
 
-@st.defines_strategy
+@st.defines_strategy()
 @deprecated_posargs
 def broadcastable_shapes(
     shape: Shape,
     *,
     min_dims: int = 0,
-    max_dims: int = None,
+    max_dims: Optional[int] = None,
     min_side: int = 1,
-    max_side: int = None
+    max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
     """Return a strategy for generating shapes that are broadcast-compatible
     with the provided shape.
@@ -1029,12 +1087,13 @@ class MutuallyBroadcastableShapesStrategy(SearchStrategy):
 _DIMENSION = r"\w+\??"  # Note that \w permits digits too!
 _SHAPE = r"\((?:{0}(?:,{0})".format(_DIMENSION) + r"{0,31})?\)"
 _ARGUMENT_LIST = "{0}(?:,{0})*".format(_SHAPE)
-_SIGNATURE = r"^{}->{}$".format(_ARGUMENT_LIST, _SHAPE)
+_SIGNATURE = fr"^{_ARGUMENT_LIST}->{_SHAPE}$"
 _SIGNATURE_MULTIPLE_OUTPUT = r"^{0}->{0}$".format(_ARGUMENT_LIST)
 
-_GUfuncSig = NamedTuple(
-    "_GUfuncSig", [("input_shapes", Tuple[Shape, ...]), ("result_shape", Shape)]
-)
+
+class _GUfuncSig(NamedTuple):
+    input_shapes: Tuple[Shape, ...]
+    result_shape: Shape
 
 
 def _hypothesis_parse_gufunc_signature(signature, all_checks=True):
@@ -1091,16 +1150,16 @@ def _hypothesis_parse_gufunc_signature(signature, all_checks=True):
     return _GUfuncSig(input_shapes=input_shapes, result_shape=result_shape)
 
 
-@st.defines_strategy
+@st.defines_strategy()
 def mutually_broadcastable_shapes(
     *,
     num_shapes: Union[UniqueIdentifier, int] = not_set,
     signature: Union[UniqueIdentifier, str] = not_set,
     base_shape: Shape = (),
     min_dims: int = 0,
-    max_dims: int = None,
+    max_dims: Optional[int] = None,
     min_side: int = 1,
-    max_side: int = None
+    max_side: Optional[int] = None,
 ) -> st.SearchStrategy[BroadcastableShapes]:
     """Return a strategy for generating a specified number of shapes, N, that are
     mutually-broadcastable with one another and with the provided "base-shape".
@@ -1317,14 +1376,14 @@ class BasicIndexStrategy(SearchStrategy):
         return tuple(result)
 
 
-@st.defines_strategy
+@st.defines_strategy()
 def basic_indices(
     shape: Shape,
     *,
     min_dims: int = 0,
-    max_dims: int = None,
+    max_dims: Optional[int] = None,
     allow_newaxis: bool = False,
-    allow_ellipsis: bool = True
+    allow_ellipsis: bool = True,
 ) -> st.SearchStrategy[BasicIndex]:
     """
     The ``basic_indices`` strategy generates `basic indexes
@@ -1382,13 +1441,13 @@ def basic_indices(
     )
 
 
-@st.defines_strategy
+@st.defines_strategy()
 @deprecated_posargs
 def integer_array_indices(
     shape: Shape,
     *,
     result_shape: SearchStrategy[Shape] = array_shapes(),
-    dtype: np.dtype = "int"
+    dtype: np.dtype = "int",
 ) -> st.SearchStrategy[Tuple[np.ndarray, ...]]:
     """Return a search strategy for tuples of integer-arrays that, when used
     to index into an array of shape ``shape``, given an array whose shape

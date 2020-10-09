@@ -18,8 +18,8 @@ Normally the output of a failing test will look something like:
 
 With the ``repr`` of each keyword argument being printed.
 
-Sometimes this isn't enough, either because you have values with a ``repr`` that
-isn't very descriptive or because you need to see the output of some
+Sometimes this isn't enough, either because you have a value with a
+``__repr__()`` method that isn't very descriptive or because you need to see the output of some
 intermediate steps of your test. That's where the ``note`` function comes in:
 
 .. autofunction:: hypothesis.note
@@ -49,7 +49,7 @@ additional information you might need in your test.
 .. _statistics:
 
 ---------------
-Test Statistics
+Test statistics
 ---------------
 
 If you are using :pypi:`pytest` you can see a number of statistics about the executed tests
@@ -172,11 +172,12 @@ Running this gives us:
   Falsifying example: test_negation_is_self_inverse(x=float('nan'))
   AssertionError
 
-This is annoying. We know about NaN and don't really care about it, but as soon as Hypothesis
-finds a NaN example it will get distracted by that and tell us about it. Also the test will
-fail and we want it to pass.
+This is annoying. We know about `NaN <https://docs.python.org/3/library/math.html>`__
+and don't really care about it, but as soon as Hypothesis
+finds a NaN example it will get distracted by that and tell us about it. Also
+the test will fail and we want it to pass.
 
-So lets block off this particular example:
+So let's block off this particular example:
 
 .. code:: python
 
@@ -250,7 +251,7 @@ Here's what happens if we try to run this:
 
   @given(lists(integers()))
   def test_sum_is_positive(xs):
-      assume(len(xs) > 10)
+      assume(len(xs) > 1)
       assume(all(x > 0 for x in xs))
       print(xs)
       assert sum(xs) > 0
@@ -545,7 +546,7 @@ random number generators for you, and you can register others:
 .. _type-inference:
 
 -------------------
-Inferred Strategies
+Inferred strategies
 -------------------
 
 In some cases, Hypothesis can work out what to do when you omit arguments.
@@ -606,7 +607,7 @@ updating to a newer version of Python as a workaround.
 .. _our-type-hints:
 
 ------------------------------
-Type Annotations in Hypothesis
+Type annotations in Hypothesis
 ------------------------------
 
 If you install Hypothesis and use :pypi:`mypy` 0.590+, or another
@@ -622,7 +623,7 @@ up our type hints.
     version of this ecosystem, as well as older versions where practical.
 
     We may also find more precise ways to describe the type of various
-    interfaces, or change their type and runtime behaviour togther in a way
+    interfaces, or change their type and runtime behaviour together in a way
     which is otherwise backwards-compatible.  We often omit type hints for
     deprecated features or arguments, as an additional form of warning.
 
@@ -668,7 +669,7 @@ it creates.  For example:
 .. _pytest-plugin:
 
 ----------------------------
-The Hypothesis pytest Plugin
+The Hypothesis pytest plugin
 ----------------------------
 
 Hypothesis includes a tiny plugin to improve integration with :pypi:`pytest`,

@@ -14,14 +14,14 @@
 # END HEADER
 
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_network
-from typing import Union
+from typing import Optional, Union
 
 from hypothesis.errors import InvalidArgument
 from hypothesis.internal.validation import check_type
 from hypothesis.strategies._internal.core import (
     SearchStrategy,
     binary,
-    defines_strategy_with_reusable_values,
+    defines_strategy,
     integers,
     sampled_from,
 )
@@ -78,9 +78,11 @@ SPECIAL_IPv6_RANGES = (
 )
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 def ip_addresses(
-    *, v: int = None, network: Union[str, IPv4Network, IPv6Network] = None
+    *,
+    v: Optional[int] = None,
+    network: Optional[Union[str, IPv4Network, IPv6Network]] = None,
 ) -> SearchStrategy[Union[IPv4Address, IPv6Address]]:
     r"""Generate IP addresses - ``v=4`` for :class:`~python:ipaddress.IPv4Address`\ es,
     ``v=6`` for :class:`~python:ipaddress.IPv6Address`\ es, or leave unspecified

@@ -15,7 +15,10 @@
 
 import itertools
 
-from hypothesis import example, given, strategies as st
+import pytest
+
+from hypothesis import assume, example, given, strategies as st
+from hypothesis.errors import InvalidState
 from hypothesis.internal.conjecture.dfa.lstar import IntegerNormalizer, LStar
 
 
@@ -73,21 +76,33 @@ def test_can_learn_dead_nodes():
 def test_iterates_over_learned_strings():
     upper_bound = bytes([1, 2])
     learner = LStar(lambda s: len(s) == 2 and max(s) <= 5 and s <= upper_bound)
-    learner.learn(upper_bound)
-    learner.learn([1, 2, 0])
-    learner.learn([6, 1, 2])
-    learner.learn([1, 3])
-    learner.learn([0, 5])
-    learner.learn([0, 6])
-    learner.learn([2, 0])
 
-    learner.learn([2, 0, 0, 0])
-    learner.learn([2, 0, 0])
+    learner.learn(upper_bound)
+
+    prev = -1
+    while learner.generation != prev:
+        prev = learner.generation
+        learner.learn([1, 2, 0])
+        learner.learn([6, 1, 2])
+        learner.learn([1, 3])
+        for i in range(7):
+            learner.learn([0, i])
+            learner.learn([1, i])
+        learner.learn([2, 0])
+
+        learner.learn([2, 0, 0, 0])
+        learner.learn([2, 0, 0])
+        learner.learn([0, 6, 0, 0])
+        learner.learn([1, 3, 0, 0])
+        learner.learn([1, 6, 0, 0])
+        learner.learn([0, 0, 0, 0, 0])
 
     dfa = learner.dfa
 
     n = 9
     matches = list(itertools.islice(dfa.all_matching_strings(), n + 1))
+    for m in matches:
+        assert learner.member(m), list(m)
     assert len(matches) == n
 
 
@@ -206,3 +221,47 @@ def test_learning_always_changes_generation(chars, order):
         if learner.dfa.matches(s) != learner.member(s):
             learner.learn(s)
             assert learner.generation > prev
+
+
+def varint_predicate(b):
+    if not b:
+        return False
+    n = b[0] & 15
+    if len(b) != n + 1:
+        return False
+    value = int.from_bytes(b[1:], "big")
+    return value >= 10
+
+
+@st.composite
+def varint(draw):
+    result = bytearray()
+    result.append(draw(st.integers(1, 255)))
+    n = result[0] & 15
+    assume(n > 0)
+    value = draw(st.integers(10, 256 ** n - 1))
+    result.extend(value.to_bytes(n, "big"))
+    return bytes(result)
+
+
+@example([b"\x02\x01\n"])
+@given(st.lists(varint(), min_size=1))
+def test_can_learn_varint_predicate(varints):
+    learner = LStar(varint_predicate)
+    prev = -1
+    while learner.generation != prev:
+        prev = learner.generation
+
+        for s in varints:
+            learner.learn(s)
+
+    for s in varints:
+        assert learner.dfa.matches(s)
+
+
+def test_cannot_reuse_dfa():
+    x = LStar(lambda x: len(x) == 3)
+    dfa = x.dfa
+    x.learn(bytes(3))
+    with pytest.raises(InvalidState):
+        dfa.start

@@ -10,6 +10,301 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.37.1:
+
+-------------------
+5.37.1 - 2020-10-07
+-------------------
+
+This patch fixes some broken links in the :mod:`~hypothesis.extra.lark`
+extra documentation.
+
+.. _v5.37.0:
+
+-------------------
+5.37.0 - 2020-10-03
+-------------------
+
+This release adds a new :class:`~hypothesis.extra.redis.RedisExampleDatabase`,
+along with the :class:`~hypothesis.database.ReadOnlyDatabase`
+and :class:`~hypothesis.database.MultiplexedDatabase` helpers, to support
+team workflows where failing examples can be seamlessly shared between everyone
+on the team - and your CI servers or buildbots.
+
+.. _v5.36.2:
+
+-------------------
+5.36.2 - 2020-10-02
+-------------------
+
+This patch ensures that if the :ref:`"hypothesis" entry point <entry-points>`
+is callable, we call it after importing it.  You can still use non-callable
+entry points (like modules), which are only imported.
+
+We also prefer `importlib.metadata <https://docs.python.org/3/library/importlib.metadata.html>`__
+or :pypi:`the backport <importlib_metadata>` over `pkg_resources
+<https://setuptools.readthedocs.io/en/latest/pkg_resources.html>`__,
+which makes ``import hypothesis`` around 200 milliseconds faster
+(:issue:`2571`).
+
+.. _v5.36.1:
+
+-------------------
+5.36.1 - 2020-09-25
+-------------------
+
+This patch adds some helpful suggestions to error messages you might see
+while learning to use the :func:`@example() <hypothesis.example>` decorator
+(:issue:`2611`) or the :func:`~hypothesis.strategies.one_of` strategy.
+
+.. _v5.36.0:
+
+-------------------
+5.36.0 - 2020-09-24
+-------------------
+
+This release upgrades the :func:`~hypothesis.extra.numpy.from_dtype` strategy
+to pass optional ``**kwargs`` to the inferred strategy, and upgrades the
+:func:`~hypothesis.extra.numpy.arrays` strategy to accept an ``elements=kwargs``
+dict to pass through to :func:`~hypothesis.extra.numpy.from_dtype`.
+
+``arrays(floating_dtypes(), shape, elements={"min_value": -10, "max_value": 10})``
+is a particularly useful pattern, as it allows for any floating dtype without
+triggering the roundoff warning for smaller types or sacrificing variety for
+larger types (:issue:`2552`).
+
+.. _v5.35.4:
+
+-------------------
+5.35.4 - 2020-09-21
+-------------------
+
+This patch reformats our code with the latest :pypi:`black` to
+take advantage of the support for magic trailing commas.
+
+.. _v5.35.3:
+
+-------------------
+5.35.3 - 2020-09-15
+-------------------
+
+This release significantly improves the performance of Hypothesis's internal
+implementation of automaton learning. However this code does not run as part
+of the user-accessible API so this has no user-visible impact.
+
+.. _v5.35.2:
+
+-------------------
+5.35.2 - 2020-09-14
+-------------------
+
+This patch ensures that, when the ``generate`` :obj:`~hypothesis.settings.phases`
+is disabled, we can replay up to :obj:`~hypothesis.settings.max_examples` examples
+from the database - which is very useful when
+:ref:`using Hypothesis with a fuzzer <fuzz_one_input>`.
+
+Thanks to Afrida Tabassum for fixing :issue:`2585`!
+
+.. _v5.35.1:
+
+-------------------
+5.35.1 - 2020-09-14
+-------------------
+
+This patch changes some internal :obj:`python:struct.Struct.format` strings
+from ``bytes`` to ``str``, to avoid :class:`python:BytesWarning` when running
+`python -bb <https://docs.python.org/3/using/cmdline.html#cmdoption-b>`__.
+
+Thanks to everyone involved in `pytest-xdist issue 596
+<https://github.com/pytest-dev/pytest-xdist/issues/596>`__,
+:bpo:`16349`, :bpo:`21071`, and :bpo:`41777` for their work on this -
+it was a remarkably subtle issue!
+
+.. _v5.35.0:
+
+-------------------
+5.35.0 - 2020-09-11
+-------------------
+
+The :func:`~hypothesis.target` function now accepts integers as well as floats.
+
+.. _v5.34.1:
+
+-------------------
+5.34.1 - 2020-09-11
+-------------------
+
+This patch adds explicit :class:`~python:typing.Optional` annotations to our public API,
+to better support users who run :pypi:`mypy` with ``--strict`` or ``no_implicit_optional=True``.
+
+Thanks to Krzysztof Przybyła for bringing this to our attention and writing the patch!
+
+.. _v5.34.0:
+
+-------------------
+5.34.0 - 2020-09-11
+-------------------
+
+This release drops support for Python 3.5, which `reached end of life upstream
+<https://devguide.python.org/#status-of-python-branches>`__ on 2020-09-13.
+
+.. _v5.33.2:
+
+-------------------
+5.33.2 - 2020-09-09
+-------------------
+
+This patch fixes a problem with :func:`~hypothesis.strategies.builds` that was not able to
+generate valid data for annotated classes with constructors.
+
+Thanks to Nikita Sobolev for fixing :issue:`2603`!
+
+.. _v5.33.1:
+
+-------------------
+5.33.1 - 2020-09-07
+-------------------
+
+This patch improves the error message from the :command:`hypothesis write`
+command if :pypi:`black` (required for the :doc:`ghostwriter <ghostwriter>`)
+is not installed.
+
+Thanks to Nikita Sobolev for fixing :issue:`2604`!
+
+.. _v5.33.0:
+
+-------------------
+5.33.0 - 2020-09-06
+-------------------
+
+When reporting failing examples, or tried examples in verbose mode, Hypothesis now
+identifies which were from :func:`@example(...) <hypothesis.example>` explicit examples.
+
+.. _v5.32.1:
+
+-------------------
+5.32.1 - 2020-09-06
+-------------------
+
+This patch contains some internal refactoring.
+Thanks to Felix Sheldon for fixing :issue:`2516`!
+
+.. _v5.32.0:
+
+-------------------
+5.32.0 - 2020-09-04
+-------------------
+
+An array drawn from :func:`~hypothesis.extra.numpy.arrays` will own its own memory; previously most arrays returned by
+this strategy were views.
+
+.. _v5.31.0:
+
+-------------------
+5.31.0 - 2020-09-04
+-------------------
+
+:func:`~hypothesis.strategies.builds` will use the ``__signature__`` attribute of
+the target, if it exists, to retrieve type hints.
+Previously :func:`python:typing.get_type_hints`, was used by default.
+If argument names varied between the ``__annotations__`` and ``__signature__``,
+they would not be supplied to the target.
+
+This was particularily an issue for :pypi:`pydantic` models which use an
+`alias generator <https://pydantic-docs.helpmanual.io/usage/model_config/#alias-generator>`__.
+
+.. _v5.30.1:
+
+-------------------
+5.30.1 - 2020-09-04
+-------------------
+
+This patch makes the :doc:`ghostwriter <ghostwriter>` much more robust when
+passed unusual modules.
+
+- improved support for non-resolvable type annotations
+- :func:`~hypothesis.extra.ghostwriter.magic` can now write
+  :func:`~hypothesis.extra.ghostwriter.equivalent` tests
+- running :func:`~hypothesis.extra.ghostwriter.magic` on modules where some
+  names in ``__all__`` are undefined skips such names, instead of raising an error
+- :func:`~hypothesis.extra.ghostwriter.magic` now knows to skip mocks
+- improved handling of import-time errors found by the ghostwriter CLI
+
+.. _v5.30.0:
+
+-------------------
+5.30.0 - 2020-08-30
+-------------------
+
+:func:`~hypothesis.strategies.register_type_strategy` now supports
+:class:`python:typing.TypeVar`, which was previously hard-coded, and allows a
+variety of types to be generated for an unconstrained :class:`~python:typing.TypeVar`
+instead of just :func:`~hypothesis.strategies.text`.
+
+Thanks again to Nikita Sobolev for all your work on advanced types!
+
+.. _v5.29.4:
+
+-------------------
+5.29.4 - 2020-08-28
+-------------------
+
+This release fixes some hard to trigger bugs in Hypothesis's automata learning
+code. This code is only run as part of the Hypothesis build process, and not
+for user code, so this release has no user visible impact.
+
+.. _v5.29.3:
+
+-------------------
+5.29.3 - 2020-08-27
+-------------------
+
+This patch adds type annotations to the :doc:`hypothesis.database <database>`
+module.  There is no runtime change, but your typechecker might notice.
+
+.. _v5.29.2:
+
+-------------------
+5.29.2 - 2020-08-27
+-------------------
+
+This patch tracks some additional information in Hypothesis internals,
+and has no user-visible impact.
+
+.. _v5.29.1:
+
+-------------------
+5.29.1 - 2020-08-27
+-------------------
+
+This release fixes a bug in some Hypothesis internal support code for learning
+automata. This mostly doesn't have any user visible impact, although it slightly
+affects the learned shrink passes so shrinking may be subtly different.
+
+.. _v5.29.0:
+
+-------------------
+5.29.0 - 2020-08-24
+-------------------
+
+This release adds support for :ref:`entry-points`, which allows for smoother
+integration of third-party Hypothesis extensions and external libraries.
+Unless you're publishing a library with Hypothesis integration, you'll
+probably only ever use this indirectly!
+
+.. _v5.28.0:
+
+-------------------
+5.28.0 - 2020-08-24
+-------------------
+
+:func:`~hypothesis.strategies.from_type` can now resolve :class:`~python:typing.TypeVar`
+instances when the ``bound`` is a :class:`~python:typing.ForwardRef`, so long as that name
+is in fact defined in the same module as the typevar (no ``TYPE_CHECKING`` tricks, sorry).
+This feature requires Python 3.7 or later.
+
+Thanks to Zac Hatfield-Dodds and Nikita Sobolev for this feature!
+
 .. _v5.27.0:
 
 -------------------

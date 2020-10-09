@@ -13,11 +13,13 @@
 #
 # END HEADER
 
+import pytest
+
 from hypothesis import HealthCheck, Phase, settings
 from hypothesis.database import InMemoryExampleDatabase
 from hypothesis.internal.compat import int_to_bytes
 from hypothesis.internal.conjecture.data import Status
-from hypothesis.internal.conjecture.engine import ConjectureRunner
+from hypothesis.internal.conjecture.engine import ConjectureRunner, RunIsComplete
 from hypothesis.internal.entropy import deterministic_PRNG
 
 
@@ -55,7 +57,7 @@ def test_database_contains_only_pareto_front():
         runner = ConjectureRunner(
             test,
             settings=settings(
-                max_examples=500, database=db, suppress_health_check=HealthCheck.all(),
+                max_examples=500, database=db, suppress_health_check=HealthCheck.all()
             ),
             database_key=b"stuff",
         )
@@ -133,9 +135,10 @@ def test_down_samples_the_pareto_front():
         for i in range(10000):
             db.save(runner.pareto_key, int_to_bytes(i, 2))
 
-        runner.reuse_existing_examples()
+        with pytest.raises(RunIsComplete):
+            runner.reuse_existing_examples()
 
-        assert 0 < runner.valid_examples <= 100
+        assert runner.valid_examples == 1000
 
 
 def test_stops_loading_pareto_front_if_interesting():
@@ -178,7 +181,7 @@ def test_uses_tags_in_calculating_pareto_front():
 
         runner = ConjectureRunner(
             test,
-            settings=settings(max_examples=10, database=InMemoryExampleDatabase(),),
+            settings=settings(max_examples=10, database=InMemoryExampleDatabase()),
             database_key=b"stuff",
         )
 
@@ -197,7 +200,7 @@ def test_optimises_the_pareto_front():
 
     runner = ConjectureRunner(
         test,
-        settings=settings(max_examples=10000, database=InMemoryExampleDatabase(),),
+        settings=settings(max_examples=10000, database=InMemoryExampleDatabase()),
         database_key=b"stuff",
     )
 
@@ -219,7 +222,7 @@ def test_does_not_optimise_the_pareto_front_if_interesting():
 
     runner = ConjectureRunner(
         test,
-        settings=settings(max_examples=10000, database=InMemoryExampleDatabase(),),
+        settings=settings(max_examples=10000, database=InMemoryExampleDatabase()),
         database_key=b"stuff",
     )
 
@@ -243,7 +246,7 @@ def test_stops_optimising_once_interesting():
 
     runner = ConjectureRunner(
         test,
-        settings=settings(max_examples=10000, database=InMemoryExampleDatabase(),),
+        settings=settings(max_examples=10000, database=InMemoryExampleDatabase()),
         database_key=b"stuff",
     )
 

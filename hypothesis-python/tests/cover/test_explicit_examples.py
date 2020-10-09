@@ -28,7 +28,12 @@ from hypothesis import (
     reporting,
     settings,
 )
-from hypothesis.errors import DeadlineExceeded, InvalidArgument, MultipleFailures
+from hypothesis.errors import (
+    DeadlineExceeded,
+    HypothesisWarning,
+    InvalidArgument,
+    MultipleFailures,
+)
 from hypothesis.strategies import floats, integers, nothing, text
 from tests.common.utils import assert_falsifying_output, capture_out
 
@@ -168,7 +173,7 @@ def test_prints_verbose_output_for_explicit_examples():
         pass
 
     assert_falsifying_output(
-        test_always_passes, x="NOT AN INTEGER", example_type="Trying",
+        test_always_passes, x="NOT AN INTEGER", example_type="Trying"
     )
 
 
@@ -179,9 +184,7 @@ def test_captures_original_repr_of_example():
         x.append(1)
         assert not x
 
-    assert_falsifying_output(
-        test_mutation, x=[],
-    )
+    assert_falsifying_output(test_mutation, x=[])
 
 
 def test_examples_are_tried_in_order():
@@ -260,3 +263,23 @@ def test_multiple_example_reporting(exc):
 
     with pytest.raises(exc):
         inner_test_multiple_failing_examples()
+
+
+@example(text())
+@given(text())
+def test_example_decorator_accepts_strategies(s):
+    """The custom error message only happens when the test has already failed."""
+
+
+def test_helpful_message_when_example_fails_because_it_was_passed_a_strategy():
+    @example(text())
+    @given(text())
+    def t(s):
+        assert isinstance(s, str)
+
+    try:
+        t()
+    except HypothesisWarning as err:
+        assert isinstance(err.__cause__, AssertionError)
+    else:
+        raise NotImplementedError("should be unreachable")

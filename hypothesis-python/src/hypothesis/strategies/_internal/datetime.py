@@ -21,7 +21,7 @@ from hypothesis.errors import InvalidArgument
 from hypothesis.internal.conjecture import utils
 from hypothesis.internal.validation import check_type, check_valid_interval
 from hypothesis.strategies._internal.core import (
-    defines_strategy_with_reusable_values,
+    defines_strategy,
     deprecated_posargs,
     just,
     none,
@@ -54,9 +54,7 @@ def replace_tzinfo(value, timezone):
         # WARNING: this is INCORRECT for timezones with negative DST offsets such as
         #       "Europe/Dublin", but it's unclear what we could do instead beyond
         #       documenting the problem and recommending use of `dateutil` instead.
-        #
-        # TODO: after dropping Python 3.5 support we won't need the getattr
-        return timezone.localize(value, is_dst=not getattr(value, "fold", 0))
+        return timezone.localize(value, is_dst=not value.fold)
     return value.replace(tzinfo=timezone)
 
 
@@ -148,14 +146,14 @@ class DatetimeStrategy(SearchStrategy):
             data.mark_invalid()
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def datetimes(
     min_value: dt.datetime = dt.datetime.min,
     max_value: dt.datetime = dt.datetime.max,
     *,
     timezones: SearchStrategy[Optional[dt.tzinfo]] = none(),
-    allow_imaginary: bool = True
+    allow_imaginary: bool = True,
 ) -> SearchStrategy[dt.datetime]:
     """datetimes(min_value=datetime.datetime.min, max_value=datetime.datetime.max, *, timezones=none(), allow_imaginary=True)
 
@@ -218,13 +216,13 @@ class TimeStrategy(SearchStrategy):
         return dt.time(**result, tzinfo=tz)
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 @deprecated_posargs
 def times(
     min_value: dt.time = dt.time.min,
     max_value: dt.time = dt.time.max,
     *,
-    timezones: SearchStrategy[Optional[dt.tzinfo]] = none()
+    timezones: SearchStrategy[Optional[dt.tzinfo]] = none(),
 ) -> SearchStrategy[dt.time]:
     """times(min_value=datetime.time.min, max_value=datetime.time.max, *, timezones=none())
 
@@ -259,7 +257,7 @@ class DateStrategy(SearchStrategy):
         )
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 def dates(
     min_value: dt.date = dt.date.min, max_value: dt.date = dt.date.max
 ) -> SearchStrategy[dt.date]:
@@ -299,7 +297,7 @@ class TimedeltaStrategy(SearchStrategy):
         return dt.timedelta(**result)
 
 
-@defines_strategy_with_reusable_values
+@defines_strategy(force_reusable_values=True)
 def timedeltas(
     min_value: dt.timedelta = dt.timedelta.min,
     max_value: dt.timedelta = dt.timedelta.max,

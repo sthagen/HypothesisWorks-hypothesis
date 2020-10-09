@@ -25,10 +25,10 @@ changes in patch releases.
 Python versions
 ---------------
 
-Hypothesis is supported and tested on CPython 3.5+, i.e.
+Hypothesis is supported and tested on CPython 3.6+, i.e.
 `all versions of CPython with upstream support <https://devguide.python.org/#status-of-python-branches>`_,
 
-Hypothesis also supports the latest PyPy for Python 3.5 and 3.6.
+Hypothesis also supports the latest PyPy for Python 3.6.
 32-bit builds of CPython also work, though they are currently only tested on Windows.
 
 In general Hypothesis does not officially support anything except the latest
@@ -87,7 +87,7 @@ In terms of what's actually *known* to work:
     100% branch coverage.
 
 -----------------
-Optional Packages
+Optional packages
 -----------------
 
 The supported versions of optional packages, for strategies in ``hypothesis.extra``,

@@ -16,42 +16,17 @@
 import math
 import struct
 
-from hypothesis.internal.compat import CAN_PACK_HALF_FLOAT
-
 # Format codes for (int, float) sized types, used for byte-wise casts.
 # See https://docs.python.org/3/library/struct.html#format-characters
 STRUCT_FORMATS = {
-    16: (b"!H", b"!e"),  # Note: 'e' is new in Python 3.6, so we have helpers
-    32: (b"!I", b"!f"),
-    64: (b"!Q", b"!d"),
+    16: ("!H", "!e"),
+    32: ("!I", "!f"),
+    64: ("!Q", "!d"),
 }
 
 
-# There are two versions of this: the one that uses Numpy to support Python
-# 3.5 and earlier, and the elegant one for new versions.  We use the new
-# one if Numpy is unavailable too, because it's slightly faster in all cases.
 def reinterpret_bits(x, from_, to):
     return struct.unpack(to, struct.pack(from_, x))[0]
-
-
-if not CAN_PACK_HALF_FLOAT:  # pragma: no cover
-    try:
-        import numpy
-    except ImportError:
-        pass
-    else:
-
-        def reinterpret_bits(x, from_, to):  # noqa: F811
-            if from_ == b"!e":
-                arr = numpy.array([x], dtype=">f2")
-                if numpy.isfinite(x) and not numpy.isfinite(arr[0]):
-                    raise OverflowError("%r too large for float16" % (x,)) from None
-                buf = arr.tobytes()
-            else:
-                buf = struct.pack(from_, x)
-            if to == b"!e":
-                return float(numpy.frombuffer(buf, dtype=">f2")[0])
-            return struct.unpack(to, buf)[0]
 
 
 def float_of(x, width):
@@ -59,16 +34,18 @@ def float_of(x, width):
     if width == 64:
         return float(x)
     elif width == 32:
-        return reinterpret_bits(float(x), b"!f", b"!f")
+        return reinterpret_bits(float(x), "!f", "!f")
     else:
-        return reinterpret_bits(float(x), b"!e", b"!e")
+        return reinterpret_bits(float(x), "!e", "!e")
 
 
 def sign(x):
     try:
         return math.copysign(1.0, x)
     except TypeError:
-        raise TypeError("Expected float but got %r of type %s" % (x, type(x).__name__))
+        raise TypeError(
+            "Expected float but got %r of type %s" % (x, type(x).__name__)
+        ) from None
 
 
 def is_negative(x):

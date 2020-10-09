@@ -354,12 +354,33 @@ def execute_explicit_examples(state, wrapped_test, arguments, kwargs):
                 # each of the (report text, error) pairs we find back to the top-level
                 # runner.  This also ensures that user-facing stack traces have as few
                 # frames of Hypothesis internals as possible.
-                yield (fragments_reported, err.with_traceback(get_trimmed_traceback()))
+                err = err.with_traceback(get_trimmed_traceback())
+
+                # One user error - whether misunderstanding or typo - we've seen a few
+                # times is to pass strategies to @example() where values are expected.
+                # Checking is easy, and false-positives not much of a problem, so:
+                if any(
+                    isinstance(arg, SearchStrategy)
+                    for arg in example.args + tuple(example.kwargs.values())
+                ):
+                    new = HypothesisWarning(
+                        "The @example() decorator expects to be passed values, but "
+                        "you passed strategies instead.  See https://hypothesis."
+                        "readthedocs.io/en/latest/reproducing.html for details."
+                    )
+                    new.__cause__ = err
+                    err = new
+
+                yield (fragments_reported, err)
                 if state.settings.report_multiple_bugs:
                     continue
                 break
+            finally:
+                assert fragments_reported[0].startswith("Falsifying example")
+                fragments_reported[0] = fragments_reported[0].replace(
+                    "Falsifying example", "Falsifying explicit example", 1
+                )
 
-            assert fragments_reported[0].startswith("Falsifying example")
             verbose_report(fragments_reported[0].replace("Falsifying", "Trying", 1))
             for f in fragments_reported[1:]:
                 verbose_report(f)
@@ -381,9 +402,7 @@ def get_random_for_wrapped_test(test, wrapped_test):
         return Random(seed)
 
 
-def process_arguments_to_given(
-    wrapped_test, arguments, kwargs, given_kwargs, argspec, settings,
-):
+def process_arguments_to_given(wrapped_test, arguments, kwargs, given_kwargs, argspec):
     selfy = None
     arguments, kwargs = convert_positional_arguments(wrapped_test, arguments, kwargs)
 
@@ -475,7 +494,7 @@ def new_given_argspec(original_argspec, given_kwargs):
 
 class StateForActualGivenExecution:
     def __init__(
-        self, test_runner, search_strategy, test, settings, random, wrapped_test,
+        self, test_runner, search_strategy, test, settings, random, wrapped_test
     ):
         self.test_runner = test_runner
         self.search_strategy = search_strategy
@@ -887,6 +906,7 @@ class HypothesisHandle:
 
     inner_test = attr.ib()
     _get_fuzz_target = attr.ib()
+    _given_kwargs = attr.ib()
 
     @property
     def fuzz_one_input(
@@ -912,7 +932,7 @@ class HypothesisHandle:
 
 def given(
     *_given_arguments: Union[SearchStrategy, InferType],
-    **_given_kwargs: Union[SearchStrategy, InferType]
+    **_given_kwargs: Union[SearchStrategy, InferType],
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:
     """A decorator for turning a test function that accepts arguments into a
     randomized test.
@@ -999,7 +1019,7 @@ def given(
             random = get_random_for_wrapped_test(test, wrapped_test)
 
             processed_args = process_arguments_to_given(
-                wrapped_test, arguments, kwargs, given_kwargs, argspec, settings,
+                wrapped_test, arguments, kwargs, given_kwargs, argspec
             )
             arguments, kwargs, test_runner, search_strategy = processed_args
 
@@ -1022,7 +1042,7 @@ def given(
                 )
 
             state = StateForActualGivenExecution(
-                test_runner, search_strategy, test, settings, random, wrapped_test,
+                test_runner, search_strategy, test, settings, random, wrapped_test
             )
 
             reproduce_failure = wrapped_test._hypothesis_internal_use_reproduce_failure
@@ -1159,12 +1179,12 @@ def given(
             )
             random = get_random_for_wrapped_test(test, wrapped_test)
             _args, _kwargs, test_runner, search_strategy = process_arguments_to_given(
-                wrapped_test, (), {}, given_kwargs, argspec, settings,
+                wrapped_test, (), {}, given_kwargs, argspec
             )
             assert not _args
             assert not _kwargs
             state = StateForActualGivenExecution(
-                test_runner, search_strategy, test, settings, random, wrapped_test,
+                test_runner, search_strategy, test, settings, random, wrapped_test
             )
             digest = function_digest(test)
 
@@ -1209,7 +1229,7 @@ def given(
         wrapped_test._hypothesis_internal_use_reproduce_failure = getattr(
             test, "_hypothesis_internal_use_reproduce_failure", None
         )
-        wrapped_test.hypothesis = HypothesisHandle(test, _get_fuzz_target)
+        wrapped_test.hypothesis = HypothesisHandle(test, _get_fuzz_target, given_kwargs)
         return wrapped_test
 
     return run_test_as_given
@@ -1220,9 +1240,9 @@ def find(
     specifier: SearchStrategy[Ex],
     condition: Callable[[Any], bool],
     *,
-    settings: Settings = None,
-    random: Random = None,
-    database_key: bytes = None
+    settings: Optional[Settings] = None,
+    random: Optional[Random] = None,
+    database_key: Optional[bytes] = None,
 ) -> Ex:
     """Returns the minimal example from the given strategy ``specifier`` that
     matches the predicate function ``condition``."""

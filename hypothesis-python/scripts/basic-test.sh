@@ -27,6 +27,10 @@ pip install ".[dpcontracts]"
 $PYTEST tests/dpcontracts/
 pip uninstall -y dpcontracts
 
+pip install fakeredis
+$PYTEST tests/redis/
+pip uninstall -y redis fakeredis
+
 pip install typing_extensions
 $PYTEST tests/typing_extensions/
 pip uninstall -y typing_extensions
@@ -43,7 +47,7 @@ if [ "$(python -c 'import sys, platform; print(sys.version_info[:2] >= (3, 6) an
   pip uninstall -y black numpy
 fi
 
-if [ "$(python -c 'import sys; print(sys.version_info[:2] == (3, 6))')" = "False" ] ; then
+if [ "$(python -c 'import sys; print(sys.version_info[:2] == (3, 8))')" = "False" ] ; then
   exit 0
 fi
 
