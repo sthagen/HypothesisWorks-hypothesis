@@ -10,6 +10,48 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. _v5.37.5:
+
+-------------------
+5.37.5 - 2020-10-24
+-------------------
+
+This patch fixes :func:`~hypothesis.strategies.from_type` with
+:class:`Iterable[T] <python:typing.Iterable>` (:issue:`2645`).
+
+.. _v5.37.4:
+
+-------------------
+5.37.4 - 2020-10-20
+-------------------
+
+This patch teaches the :func:`~hypothesis.extra.ghostwriter.magic` ghostwriter
+to recognise that pairs of functions like :func:`~python:colorsys.rgb_to_hsv`
+and :func:`~python:colorsys.hsv_to_rgb` should
+:func:`~hypothesis.extra.ghostwriter.roundtrip`.
+
+.. _v5.37.3:
+
+-------------------
+5.37.3 - 2020-10-15
+-------------------
+
+This patch improves :func:`~hypothesis.strategies.builds` and
+:func:`~hypothesis.strategies.from_type` support for explicitly defined ``__signature__``
+attributes, from :ref:`version 5.8.3 <v5.8.3>`, to support generic types from the
+:mod:`python:typing` module.
+
+Thanks to Rónán Carrigan for identifying and fixing this problem!
+
+.. _v5.37.2:
+
+-------------------
+5.37.2 - 2020-10-14
+-------------------
+
+This patch fixes :func:`~hypothesis.extra.lark.from_lark` with version
+0.10.1+ of the :pypi:`lark-parser` package.
+
 .. _v5.37.1:
 
 -------------------
