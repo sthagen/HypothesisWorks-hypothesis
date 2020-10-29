@@ -10,6 +10,37 @@ on `PyPI <https://pypi.org/project/hypothesis/>`__.
 Hypothesis 5.x
 ==============
 
+.. only:: has_release_file
+
+    --------------------
+    Current pull request
+    --------------------
+
+    .. include:: ../RELEASE.rst
+
+.. _v5.38.1:
+
+-------------------
+5.38.1 - 2020-10-26
+-------------------
+
+This patch fixes :func:`~hypothesis.strategies.builds`, so that when passed
+:obj:`~hypothesis.infer` for an argument with a non-:class:`~python:typing.Optional`
+type annotation and a default value of ``None`` to build a class which defines
+an explicit ``__signature__`` attribute, either ``None`` or that type may be
+generated.
+
+This is unlikely to happen unless you are using :pypi:`pydantic` (:issue:`2648`).
+
+.. _v5.38.0:
+
+-------------------
+5.38.0 - 2020-10-24
+-------------------
+
+This release improves our support for :func:`@st.composite <hypothesis.strategies.composite>`
+on a :obj:`python:classmethod` or :obj:`python:staticmethod` (:issue:`2578`).
+
 .. _v5.37.5:
 
 -------------------

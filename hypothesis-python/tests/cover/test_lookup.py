@@ -17,6 +17,7 @@ import abc
 import collections
 import datetime
 import enum
+import inspect
 import io
 import string
 import sys
@@ -95,36 +96,36 @@ class Elem:
 
 
 @pytest.mark.parametrize(
-    "typ,coll_type,instance_of",
+    "typ,coll_type",
     [
-        (typing.Set[Elem], set, Elem),
-        (typing.FrozenSet[Elem], frozenset, Elem),
-        (typing.Dict[Elem, Elem], dict, Elem),
-        (typing.DefaultDict[Elem, Elem], collections.defaultdict, Elem),
-        (typing.KeysView[Elem], type({}.keys()), Elem),
-        (typing.ValuesView[Elem], type({}.values()), Elem),
-        (typing.List[Elem], list, Elem),
-        (typing.Tuple[Elem], tuple, Elem),
-        (typing.Tuple[Elem, ...], tuple, Elem),
-        (typing.Iterator[Elem], typing.Iterator, Elem),
-        (typing.Sequence[Elem], typing.Sequence, Elem),
-        (typing.Iterable[Elem], typing.Iterable, Elem),
-        (typing.Mapping[Elem, None], typing.Mapping, Elem),
-        (typing.Container[Elem], typing.Container, Elem),
-        (typing.NamedTuple("A_NamedTuple", (("elem", Elem),)), tuple, Elem),
+        (typing.Set[Elem], set),
+        (typing.FrozenSet[Elem], frozenset),
+        (typing.Dict[Elem, None], dict),
+        (typing.DefaultDict[Elem, None], collections.defaultdict),
+        (typing.KeysView[Elem], type({}.keys())),
+        (typing.ValuesView[Elem], type({}.values())),
+        (typing.List[Elem], list),
+        (typing.Tuple[Elem], tuple),
+        (typing.Tuple[Elem, ...], tuple),
+        (typing.Iterator[Elem], typing.Iterator),
+        (typing.Sequence[Elem], typing.Sequence),
+        (typing.Iterable[Elem], typing.Iterable),
+        (typing.Mapping[Elem, None], typing.Mapping),
+        (typing.Container[Elem], typing.Container),
+        (typing.NamedTuple("A_NamedTuple", (("elem", Elem),)), tuple),
     ],
     ids=repr,
 )
 @given(data=st.data())
-def test_specialised_collection_types(data, typ, coll_type, instance_of):
+def test_specialised_collection_types(data, typ, coll_type):
     ex = data.draw(from_type(typ))
     assert isinstance(ex, coll_type)
-    instances = [isinstance(elem, instance_of) for elem in ex]
+    instances = [isinstance(elem, Elem) for elem in ex]
     assert all(instances)
     assume(instances)  # non-empty collections without calling len(iterator)
 
 
-@given(from_type(typing.DefaultDict[Elem, Elem]).filter(len))
+@given(from_type(typing.DefaultDict[int, Elem]).filter(len))
 def test_defaultdict_values_type(ex):
     assert all(isinstance(elem, Elem) for elem in ex.values())
 
@@ -655,3 +656,26 @@ class TreeForwardRefs(typing.NamedTuple):
 @given(st.builds(TreeForwardRefs))
 def test_resolves_forward_references_outside_annotations(t):
     assert isinstance(t, TreeForwardRefs)
+
+
+def constructor(a: str = None):
+    pass
+
+
+class WithOptionalInSignature:
+    __signature__ = inspect.signature(constructor)
+    __annotations__ = typing.get_type_hints(constructor)
+
+    def __init__(self, **kwargs):
+        assert set(kwargs) == {"a"}
+        self.a = kwargs["a"]
+
+
+def test_compat_get_type_hints_aware_of_None_default():
+    # Regression test for https://github.com/HypothesisWorks/hypothesis/issues/2648
+    strategy = st.builds(WithOptionalInSignature, a=infer)
+    find_any(strategy, lambda x: x.a is None)
+    find_any(strategy, lambda x: x.a is not None)
+
+    assert typing.get_type_hints(constructor)["a"] == typing.Optional[str]
+    assert inspect.signature(constructor).parameters["a"].annotation == str
