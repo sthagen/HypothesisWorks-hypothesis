@@ -18,6 +18,67 @@ Hypothesis 5.x
 
     .. include:: ../RELEASE.rst
 
+.. _v5.41.3:
+
+-------------------
+5.41.3 - 2020-11-18
+-------------------
+
+This patch adds a final fallback clause to :ref:`our plugin logic <entry-points>`
+to fail with a warning rather than error on Python < 3.8 when neither the
+:pypi:`importlib_metadata` (preferred) or :pypi:`setuptools` (fallback)
+packages are available.
+
+.. _v5.41.2:
+
+-------------------
+5.41.2 - 2020-11-08
+-------------------
+
+This patch fixes :func:`~hypothesis.provisional.urls` strategy ensuring that
+``~`` (tilde) is treated as one of the url-safe characters (:issue:`2658`).
+
+.. _v5.41.1:
+
+-------------------
+5.41.1 - 2020-11-03
+-------------------
+
+This patch improves our :ref:`CLI help and documentation <hypothesis-cli>`.
+
+.. _v5.41.0:
+
+-------------------
+5.41.0 - 2020-10-30
+-------------------
+
+Hypothesis now shrinks examples where the error is raised while drawing from
+a strategy.  This makes complicated custom strategies *much* easier to debug,
+at the cost of a slowdown for use-cases where you catch and ignore such errors.
+
+.. _v5.40.0:
+
+-------------------
+5.40.0 - 2020-10-30
+-------------------
+
+This release teaches :func:`~hypothesis.strategies.from_type` how to handle
+:class:`~python:typing.ChainMap`, :class:`~python:typing.Counter`,
+:class:`~python:typing.Deque`, :class:`~python:typing.Generator`,
+:class:`~python:typing.Match`, :class:`~python:typing.OrderedDict`,
+:class:`~python:typing.Pattern`, and :class:`~python:collections.abc.Set`
+(:issue:`2654`).
+
+.. _v5.39.0:
+
+-------------------
+5.39.0 - 2020-10-30
+-------------------
+
+:func:`~hypothesis.strategies.from_type` now knows how to resolve :pep:`585`
+parameterized standard collection types, which are new in Python 3.9
+(:issue:`2629`).
+
 .. _v5.38.1:
 
 -------------------
