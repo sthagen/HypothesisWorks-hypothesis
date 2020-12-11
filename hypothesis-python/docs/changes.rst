@@ -18,6 +18,99 @@ Hypothesis 5.x
 
     .. include:: ../RELEASE.rst
 
+.. _v5.43.3:
+
+-------------------
+5.43.3 - 2020-12-11
+-------------------
+
+This patch fixes :issue:`2696`, an internal error triggered when the
+:func:`@example <hypothesis.example>` decorator was used and the
+:obj:`~hypothesis.settings.verbosity` setting was ``quiet``.
+
+.. _v5.43.2:
+
+-------------------
+5.43.2 - 2020-12-10
+-------------------
+
+This patch improves the error message from the
+:func:`~hypothesis.extra.pandas.data_frames` strategy when both the ``rows``
+and ``columns`` arguments are given, but there is a missing entry in ``rows``
+and the corresponding column has no ``fill`` value (:issue:`2678`).
+
+.. _v5.43.1:
+
+-------------------
+5.43.1 - 2020-12-10
+-------------------
+
+This patch improves the error message if :func:`~hypothesis.strategies.builds`
+is passed an :class:`~python:enum.Enum` which cannot be called without arguments,
+to suggest using :func:`~hypothesis.strategies.sampled_from` (:issue:`2693`).
+
+.. _v5.43.0:
+
+-------------------
+5.43.0 - 2020-12-09
+-------------------
+
+This release adds new :func:`~hypothesis.strategies.timezones` and
+:func:`~hypothesis.strategies.timezone_keys` strategies (:issue:`2630`)
+based on the new :mod:`python:zoneinfo` module in Python 3.9.
+
+``pip install hypothesis[zoneinfo]`` will ensure that you have the
+appropriate backports installed if you need them.
+
+.. _v5.42.3:
+
+-------------------
+5.42.3 - 2020-12-09
+-------------------
+
+This patch fixes an internal error in :func:`~hypothesis.strategies.datetimes`
+with ``allow_imaginary=False`` where the ``timezones`` argument can generate
+``tzinfo=None`` (:issue:`2662`).
+
+.. _v5.42.2:
+
+-------------------
+5.42.2 - 2020-12-09
+-------------------
+
+This patch teaches :func:`hypothesis.extra.django.from_field` to infer
+more efficient strategies by inspecting (not just filtering by) field
+validators for numeric and string fields (:issue:`1116`).
+
+.. _v5.42.1:
+
+-------------------
+5.42.1 - 2020-12-09
+-------------------
+
+This patch refactors :class:`hypothesis.settings` to use type-annotated
+keyword arguments instead of ``**kwargs``, which makes tab-completion
+much more useful - as well as type-checkers like :pypi:`mypy`.
+
+.. _v5.42.0:
+
+-------------------
+5.42.0 - 2020-12-09
+-------------------
+
+This patch teaches the :func:`~hypothesis.extra.ghostwriter.magic` ghostwriter
+to recognise "en/de" function roundtrips other than the common encode/decode
+pattern, such as encrypt/decrypt or, encipher/decipher.
+
+.. _v5.41.5:
+
+-------------------
+5.41.5 - 2020-12-05
+-------------------
+
+This patch adds a performance optimisation to avoid saving redundant
+seeds when using :ref:`the .fuzz_one_input hook <fuzz_one_input>`.
+
 .. _v5.41.4:
 
 -------------------
