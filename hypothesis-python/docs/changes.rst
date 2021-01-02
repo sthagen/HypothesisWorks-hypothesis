@@ -18,6 +18,37 @@ Hypothesis 5.x
 
     .. include:: ../RELEASE.rst
 
+.. _v5.43.8:
+
+-------------------
+5.43.8 - 2021-01-02
+-------------------
+
+This patch makes some strategies for collections with a uniqueness constraint
+much more efficient, including ``dictionaries(keys=sampled_from(...), values=..)``
+and ``lists(tuples(sampled_from(...), ...), unique_by=lambda x: x[0])``.
+(related to :issue:`2036`)
+
+.. _v5.43.7:
+
+-------------------
+5.43.7 - 2021-01-02
+-------------------
+
+This patch extends our faster special case for
+:func:`~hypothesis.strategies.sampled_from` elements in unique
+:func:`~hypothesis.strategies.lists` to account for chains of
+``.map(...)`` and ``.filter(...)`` calls (:issue:`2036`).
+
+.. _v5.43.6:
+
+-------------------
+5.43.6 - 2021-01-02
+-------------------
+
+This patch improves the type annotations on :func:`~hypothesis.assume`
+and :func:`@reproduce_failure() <hypothesis.reproduce_failure>`.
+
 .. _v5.43.5:
 
 -------------------
@@ -1643,6 +1674,9 @@ Miscellaneous
 ~~~~~~~~~~~~~
 - The ``.example()`` method of strategies (intended for interactive
   exploration) no longer takes a ``random`` argument.
+- It is now an error to apply :func:`@example <hypothesis.example>`,
+  :func:`@seed <hypothesis.seed>`, or :func:`@reproduce_failure <hypothesis.reproduce_failure>`
+  without also applying :func:`@given <hypothesis.given>`.
 - You may pass either the ``target`` or ``targets`` argument to stateful rules, but not both.
 - :obj:`~hypothesis.settings.deadline` must be ``None`` (to disable), a
   :class:`~python:datetime.timedelta`, or an integer or float number of milliseconds.

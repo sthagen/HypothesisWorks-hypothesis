@@ -127,9 +127,10 @@ class ListStrategy(SearchStrategy):
 
 
 class UniqueListStrategy(ListStrategy):
-    def __init__(self, elements, min_size, max_size, keys):
+    def __init__(self, elements, min_size, max_size, keys, tuple_suffixes):
         super().__init__(elements, min_size, max_size)
         self.keys = keys
+        self.tuple_suffixes = tuple_suffixes
 
     def do_draw(self, data):
         if self.element_strategy.is_empty:
@@ -148,11 +149,10 @@ class UniqueListStrategy(ListStrategy):
         # We construct a filtered strategy here rather than using a check-and-reject
         # approach because some strategies have special logic for generation under a
         # filter, and FilteredStrategy can consolidate multiple filters.
-        filtered = self.element_strategy.filter(
-            lambda val: all(
-                key(val) not in seen for (key, seen) in zip(self.keys, seen_sets)
-            )
-        )
+        def not_yet_in_unique_list(val):
+            return all(key(val) not in seen for key, seen in zip(self.keys, seen_sets))
+
+        filtered = self.element_strategy.filter(not_yet_in_unique_list)
         while elements.more():
             value = filtered.filtered_strategy.do_filtered_draw(
                 data=data, filter_strategy=filtered
@@ -162,6 +162,8 @@ class UniqueListStrategy(ListStrategy):
             else:
                 for key, seen in zip(self.keys, seen_sets):
                     seen.add(key(value))
+                if self.tuple_suffixes is not None:
+                    value = (value,) + data.draw(self.tuple_suffixes)
                 result.append(value)
         assert self.max_size >= len(result) >= self.min_size
         return result
@@ -185,11 +187,15 @@ class UniqueSampledListStrategy(UniqueListStrategy):
             j = cu.integer_range(data, 0, i)
             if j != i:
                 remaining[i], remaining[j] = remaining[j], remaining[i]
-            value = remaining.pop()
+            value = self.element_strategy._transform(remaining.pop())
 
-            if all(key(value) not in seen for (key, seen) in zip(self.keys, seen_sets)):
+            if value is not filter_not_satisfied and all(
+                key(value) not in seen for key, seen in zip(self.keys, seen_sets)
+            ):
                 for key, seen in zip(self.keys, seen_sets):
                     seen.add(key(value))
+                if self.tuple_suffixes is not None:
+                    value = (value,) + data.draw(self.tuple_suffixes)
                 result.append(value)
             else:
                 should_draw.reject()
