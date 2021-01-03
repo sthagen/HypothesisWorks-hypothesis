@@ -181,8 +181,7 @@ def upload_distribution():
             "twine",
             "upload",
             "--skip-existing",
-            "--config-file",
-            tools.PYPIRC,
+            "--username=__token__",
             os.path.join(DIST, "*"),
         ]
     )
@@ -210,17 +209,7 @@ def upload_distribution():
             "body": changelog_body,
         },
         timeout=120,  # seconds
-        # Scoped personal access token, stored in Travis environ variable
-        auth=("Zac-HD", os.environ["Zac_release_token"]),
-    ).raise_for_status()
-
-    # Post the release notes to Tidelift too - see https://tidelift.com/docs/api
-    requests.post(
-        "https://api.tidelift.com/external-api/lifting/pypi/hypothesis/release-notes/"
-        + current_version(),
-        json={"body": changelog_body},
-        headers={"Authorization": "Bearer {}".format(os.environ["TIDELIFT_API_TOKEN"])},
-        timeout=120,  # seconds
+        auth=("Zac-HD", os.environ["GH_TOKEN"]),
     ).raise_for_status()
 
 
