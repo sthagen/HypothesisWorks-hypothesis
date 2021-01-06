@@ -18,6 +18,37 @@ Hypothesis 5.x
 
     .. include:: ../RELEASE.rst
 
+.. _v5.47.0:
+
+-------------------
+5.47.0 - 2021-01-05
+-------------------
+
+This release upgrades the import logic for :doc:`ghostwritten tests <ghostwriter>`,
+handling many cases where imports would previously be missing or from unexpected
+locations.
+
+.. _v5.46.0:
+
+-------------------
+5.46.0 - 2021-01-04
+-------------------
+
+This release upgrades :func:`~hypothesis.strategies.from_type`, to infer
+strategies for type-annotated arguments even if they have defaults when
+it otherwise falls back to :func:`~hypothesis.strategies.builds`
+(:issue:`2708`).
+
+.. _v5.45.0:
+
+-------------------
+5.45.0 - 2021-01-04
+-------------------
+
+This release adds the :ref:`codemods` extra, which you can use to
+check for and automatically fix issues such as use of deprecated
+Hypothesis APIs (:issue:`2705`).
+
 .. _v5.44.0:
 
 -------------------

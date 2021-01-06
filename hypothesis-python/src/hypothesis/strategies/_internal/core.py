@@ -1235,6 +1235,7 @@ def randoms(
             want the new behaviour (which will become the default in future),
             set use_true_random=False.""",
             since="2020-06-30",
+            has_codemod=False,
         )
         use_true_random = True
 
@@ -1279,6 +1280,36 @@ def random_module() -> SearchStrategy[RandomSeeder]:
     Examples from these strategy shrink to seeds closer to zero.
     """
     return shared(RandomModule(), key="hypothesis.strategies.random_module()")
+
+
+class BuildsStrategy(SearchStrategy):
+    def __init__(self, target, args, kwargs):
+        self.target = target
+        self.args = args
+        self.kwargs = kwargs
+
+    def do_draw(self, data):
+        try:
+            return self.target(
+                *[data.draw(a) for a in self.args],
+                **{k: data.draw(v) for k, v in self.kwargs.items()},
+            )
+        except TypeError as err:
+            if (
+                isinstance(self.target, type)
+                and issubclass(self.target, enum.Enum)
+                and not (self.args or self.kwargs)
+            ):
+                name = self.target.__module__ + "." + self.target.__qualname__
+                raise InvalidArgument(
+                    f"Calling {name} with no arguments raised an error - "
+                    f"try using sampled_from({name}) instead of builds({name})"
+                ) from err
+            raise
+
+    def validate(self):
+        tuples(*self.args).validate()
+        fixed_dictionaries(self.kwargs).validate()
 
 
 # The ideal signature builds(target, /, *args, **kwargs) is unfortunately a
@@ -1348,27 +1379,9 @@ def builds(
         for kw in set(hints) & (required | to_infer):
             kwargs[kw] = from_type(hints[kw])
 
-    def build_target(value):
-        args, kwargs = value
-        try:
-            return target(*args, **kwargs)
-        except TypeError as err:
-            if (
-                isinstance(target, type)
-                and issubclass(target, enum.Enum)
-                and not (args or kwargs)
-            ):
-                name = target.__module__ + "." + target.__qualname__
-                raise InvalidArgument(
-                    f"Calling {name} with no arguments raised an error - "
-                    f"try using sampled_from({name}) instead of builds({name})"
-                ) from err
-            raise
-
     # Mypy doesn't realise that `infer` is gone from kwargs now
     # and thinks that target and args have the same (union) type.
-    args_kwargs = tuples(tuples(*args), fixed_dictionaries(kwargs))  # type: ignore
-    return args_kwargs.map(build_target)
+    return BuildsStrategy(target, args, kwargs)
 
 
 if sys.version_info[:2] >= (3, 8):  # pragma: no cover
@@ -1592,9 +1605,29 @@ def _from_type(thing: Type[Ex]) -> SearchStrategy[Ex]:
             "Could not resolve %r to a strategy; consider "
             "using register_type_strategy" % (thing,)
         )
-    # Finally, try to build an instance by calling the type object
+    # Finally, try to build an instance by calling the type object.  Unlike builds(),
+    # this block *does* try to infer strategies for arguments with default values.
+    # That's because of the semantic different; builds() -> "call this with ..."
+    # so we only infer when *not* doing so would be an error; from_type() -> "give
+    # me arbitrary instances" so the greater variety is acceptable.
+    # And if it's *too* varied, express your opinions with register_type_strategy()
     if not isabstract(thing):
-        return builds(thing)
+        try:
+            hints = get_type_hints(thing)
+            params = signature(thing).parameters
+        except Exception:
+            return builds(thing)
+        kwargs = {}
+        for k, p in params.items():
+            if (
+                k in hints
+                and k != "return"
+                and p.default is not Parameter.empty
+                and p.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
+            ):
+                kwargs[k] = just(p.default) | _from_type(hints[k])
+        return builds(thing, **kwargs)
+    # And if it's an abstract type, we'll resolve to a union of subclasses instead.
     subclasses = thing.__subclasses__()
     if not subclasses:
         raise ResolutionFailed(
@@ -2220,6 +2253,7 @@ def register_type_strategy(
             "%s will be registered for any type arguments."
             % (custom_type, origin, strategy_repr),
             since="2020-08-17",
+            has_codemod=False,
         )
         if origin in types._global_type_lookup:
             raise InvalidArgument(
