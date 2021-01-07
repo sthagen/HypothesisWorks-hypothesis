@@ -18,6 +18,42 @@ Hypothesis 5.x
 
     .. include:: ../RELEASE.rst
 
+.. _v5.49.0:
+
+-------------------
+5.49.0 - 2021-01-07
+-------------------
+
+This release adds the
+:obj:`~hypothesis.HealthCheck.function_scoped_fixture` health check value,
+which can be used to suppress the existing warning that appears when
+:func:`@given <hypothesis.given>` is applied to a test that uses pytest
+function-scoped fixtures.
+
+(This warning exists because function-scoped fixtures only run once per
+function, not once per example, which is usually unexpected and can cause
+subtle problems.)
+
+When this warning becomes a health check error in a future release, suppressing
+it via Python warning settings will no longer be possible.
+In the rare case that once-per-function behaviour is intended, it will still be
+possible to use :obj:`~hypothesis.HealthCheck.function_scoped_fixture` to
+opt out of the health check error for specific tests.
+
+.. _v5.48.0:
+
+-------------------
+5.48.0 - 2021-01-06
+-------------------
+
+This release adds :func:`hypothesis.currently_in_test_context`, which can be used
+to check whether the calling code is currently running inside an
+:func:`@given <hypothesis.given>` or :doc:`stateful <stateful>` test.
+
+This is most useful for third-party integrations and assertion helpers which may
+wish to use :func:`~hypothesis.assume` or :func:`~hypothesis.target`, without also
+requiring that the helper only be used from property-based tests (:issue:`2581`).
+
 .. _v5.47.0:
 
 -------------------
