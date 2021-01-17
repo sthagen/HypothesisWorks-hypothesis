@@ -13,5 +13,15 @@
 #
 # END HEADER
 
-__version_info__ = (6, 0, 2)
-__version__ = ".".join(map(str, __version_info__))
+import hypothesis.strategies as st
+from hypothesis.internal.conjecture.data import ConjectureData
+
+
+def test_filter_iterations_are_marked_as_discarded():
+    x = st.integers(0, 255).filter(lambda x: x == 0)
+
+    data = ConjectureData.for_buffer([2, 1, 0])
+
+    assert data.draw(x) == 0
+
+    assert data.has_discards

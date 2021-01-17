@@ -18,6 +18,25 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.0.2:
+
+------------------
+6.0.2 - 2021-01-14
+------------------
+
+This release makes some small improvements to how filtered strategies work. It should improve the performance of shrinking filtered strategies,
+and may under some (probably rare) circumstances improve the diversity of generated examples.
+
+.. _v6.0.1:
+
+------------------
+6.0.1 - 2021-01-13
+------------------
+
+This patch fixes an interaction where our :ref:`test statistics <statistics>`
+handling made Pytest's ``--junit-xml`` output fail to validate against the
+strict ``xunit2`` schema (:issue:`1975`).
+
 .. _v6.0.0:
 
 ------------------
