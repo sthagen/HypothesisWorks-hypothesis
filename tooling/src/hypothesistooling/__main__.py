@@ -493,6 +493,21 @@ def check_rust_tests():
     cr.cargo("test")
 
 
+@rust_task
+def format_conjecture_rust_code():
+    cr.cargo("fmt")
+
+
+@rust_task
+def check_conjecture_rust_format():
+    cr.cargo("fmt", "--", "--check")
+
+
+@rust_task
+def lint_conjecture_rust():
+    cr.cargo("clippy")
+
+
 @task()
 def tasks():
     """Print a list of all task names supported by the build system."""

@@ -2,10 +2,11 @@
 // needs.
 
 use rand::{ChaChaRng, Rng};
-use std::collections::HashSet;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 pub type DataStream = Vec<u64>;
+pub type DataStreamSlice = [u64];
 
 #[derive(Debug, Clone)]
 pub struct FailedDraw;
@@ -48,22 +49,22 @@ pub struct DataSource {
 
 impl DataSource {
     fn new(generator: BitGenerator) -> DataSource {
-        return DataSource {
+        DataSource {
             bitgenerator: generator,
             record: DataStream::new(),
             sizes: Vec::new(),
             draws: Vec::new(),
             draw_stack: Vec::new(),
             written_indices: HashSet::new(),
-        };
+        }
     }
 
     pub fn from_random(random: ChaChaRng) -> DataSource {
-        return DataSource::new(BitGenerator::Random(random));
+        DataSource::new(BitGenerator::Random(random))
     }
 
     pub fn from_vec(record: DataStream) -> DataSource {
-        return DataSource::new(BitGenerator::Recorded(record));
+        DataSource::new(BitGenerator::Recorded(record))
     }
 
     pub fn start_draw(&mut self) {
@@ -73,15 +74,15 @@ impl DataSource {
 
         self.draw_stack.push(i);
         self.draws.push(DrawInProgress {
-            start: start,
+            start,
             end: None,
-            depth: depth,
+            depth,
         });
     }
 
     pub fn stop_draw(&mut self) {
-        assert!(self.draws.len() > 0);
-        assert!(self.draw_stack.len() > 0);
+        assert!(!self.draws.is_empty());
+        assert!(!self.draw_stack.is_empty());
         let i = self.draw_stack.pop().unwrap();
         let end = self.record.len();
         self.draws[i].end = Some(end);
@@ -102,11 +103,13 @@ impl DataSource {
         self.sizes.push(n_bits);
         let mut result = match self.bitgenerator {
             BitGenerator::Random(ref mut random) => random.next_u64(),
-            BitGenerator::Recorded(ref mut v) => if self.record.len() >= v.len() {
-                return Err(FailedDraw);
-            } else {
-                v[self.record.len()]
-            },
+            BitGenerator::Recorded(ref mut v) => {
+                if self.record.len() >= v.len() {
+                    return Err(FailedDraw);
+                } else {
+                    v[self.record.len()]
+                }
+            }
         };
 
         if n_bits < 64 {
@@ -116,30 +119,24 @@ impl DataSource {
 
         self.record.push(result);
 
-        return Ok(result);
+        Ok(result)
     }
 
-    pub fn to_result(mut self, status: Status) -> TestResult {
+    pub fn into_result(self, status: Status) -> TestResult {
         TestResult {
             record: self.record,
-            status: status,
+            status,
             written_indices: self.written_indices,
             sizes: self.sizes,
-            draws: self.draws
-                .drain(..)
+            draws: self
+                .draws
+                .into_iter()
                 .filter_map(|d| match d {
                     DrawInProgress {
                         depth,
                         start,
                         end: Some(end),
-                    } if start < end =>
-                    {
-                        Some(Draw {
-                            start: start,
-                            end: end,
-                            depth: depth,
-                        })
-                    }
+                    } if start < end => Some(Draw { start, end, depth }),
                     DrawInProgress { end: None, .. } => {
                         assert!(status == Status::Invalid || status == Status::Overflow);
                         None
@@ -184,11 +181,12 @@ pub struct TestResult {
     pub written_indices: HashSet<usize>,
 }
 
-
 impl Ord for TestResult {
     fn cmp(&self, other: &TestResult) -> Ordering {
-      self.record.len().cmp(&other.record.len()).
-      then(self.record.cmp(&other.record))
+        self.record
+            .len()
+            .cmp(&other.record.len())
+            .then(self.record.cmp(&other.record))
     }
 }
 
@@ -204,4 +202,4 @@ impl PartialEq for TestResult {
     }
 }
 
-impl Eq for TestResult { }
+impl Eq for TestResult {}
