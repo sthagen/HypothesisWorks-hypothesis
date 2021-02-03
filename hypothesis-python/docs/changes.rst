@@ -18,6 +18,49 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.1.1:
+
+------------------
+6.1.1 - 2021-01-31
+------------------
+
+This patch updates our automatic code formatting to use :pypi:`shed`,
+which includes :pypi:`autoflake`, :pypi:`black`, :pypi:`isort`, and
+:pypi:`pyupgrade` (:issue:`2780`).
+
+.. _v6.1.0:
+
+------------------
+6.1.0 - 2021-01-29
+------------------
+
+This release teaches Hypothesis to distinguish between errors based on the
+`__cause__ or __context__ of otherwise identical exceptions
+<https://docs.python.org/3/library/exceptions.html>`__, which is particularly
+useful when internal errors can be wrapped by a library-specific or semantically
+appropriate exception such as:
+
+.. code-block:: python
+
+    try:
+        do_the_thing(foo, timeout=10)
+    except Exception as err:
+        raise FooError("Failed to do the thing") from err
+
+Earlier versions of Hypothesis only see the ``FooError``, while we can now
+distinguish a ``FooError`` raised because of e.g. an internal assertion from
+one raised because of a ``TimeoutExceeded`` exception.
+
+.. _v6.0.4:
+
+------------------
+6.0.4 - 2021-01-27
+------------------
+
+This release prevents a race condition inside :func:`~hypothesis.strategies.recursive` strategies.
+The race condition occurs when the same :func:`~hypothesis.strategies.recursive` strategy is shared among tests
+that are running in multiple threads (:issue:`2717`).
+
 .. _v6.0.3:
 
 ------------------

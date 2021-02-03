@@ -38,7 +38,7 @@ CARGO_FILE = os.path.join(BASE_DIR, "Cargo.toml")
 GEMFILE_LOCK_FILE = os.path.join(BASE_DIR, "Gemfile.lock")
 CONJECTURE_CARGO_FILE = cr.CARGO_FILE
 
-RUST_SRC = os.path.join(BASE_DIR, "src")
+RUST_SRC = cr.SRC
 RUBY_SRC = os.path.join(BASE_DIR, "lib")
 
 
@@ -83,10 +83,9 @@ def build_distribution():
     current_dependency = rm.extract_assignment(CARGO_FILE, "conjecture")
 
     assert current_dependency == LOCAL_PATH_DEPENDENCY, (
-        "Cargo file in a bad state. Expected conjecture dependency to be %s "
-        "but it was instead %s"
-    ) % (LOCAL_PATH_DEPENDENCY, current_dependency)
-
+        "Cargo file in a bad state. Expected conjecture dependency to be "
+        f"{LOCAL_PATH_DEPENDENCY} but it was instead {current_dependency}"
+    )
     conjecture_version = cr.current_version()
 
     # Update to use latest version of conjecture-rust.
@@ -140,14 +139,18 @@ def ensure_bundler():
     bundle_command("install")
 
 
-RUBY_TO_PRINT_VERSION = """
+def cargo(*args):
+    install.ensure_rustup()
+    with in_dir(BASE_DIR):
+        subprocess.check_call(("cargo",) + args)
+
+
+RUBY_TO_PRINT_VERSION = f"""
 require 'rubygems'
-spec = Gem::Specification::load(%r)
+spec = Gem::Specification::load({GEMSPEC_FILE!r})
 puts spec.version
 """.strip().replace(
     "\n", "; "
-) % (
-    GEMSPEC_FILE,
 )
 
 

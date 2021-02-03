@@ -1,3 +1,18 @@
+# Conjecture for Rust 0.7.0 (2021-02-01)
+
+This release improves flexibility and performance of `distributions::Sampler::new` by allowing it to accept `&[f32]` instead of a `Vec`.
+It also positively affects `distributions::good_bitlengths` as it does not have to allocate a vector anymore.
+
+# Conjecture for Rust 0.6.0 (2021-01-27)
+
+This release is required following an unsuccesful deploy of 0.5.0 due to usage of a cargo keyword that was too long.
+
+# Conjecture for Rust 0.5.0 (2021-01-27)
+
+Adds support for skipping shrinking. While shrinking is extremely helpful and important in general, it has the potential to be quite time consuming. It can be useful to observe a raw failure before choosing to allow the engine to try to shrink. [hypothesis-python](https://hypothesis.readthedocs.io/en/latest/settings.html#phases) already provides the ability to skip shrinking, so there is precedent for this being useful.
+
+Also swaps out the deprecated tempdir crate with tempfile.
+
 # Conjecture for Rust 0.4.0 (2018-10-24)
 
 This release extends Conjecture for Rust with support for saving examples it discovers on disk in an example database,

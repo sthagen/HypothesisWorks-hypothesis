@@ -43,8 +43,8 @@ master_doc = "index"
 
 # General information about the project.
 project = "Hypothesis"
-copyright = "2013-%s, David R. MacIver" % datetime.datetime.utcnow().year
 author = "David R. MacIver"
+copyright = f"2013-{datetime.datetime.utcnow().year}, {author}"
 
 _d = {}
 with open(
@@ -83,7 +83,7 @@ intersphinx_mapping = {
     "attrs": ("https://www.attrs.org/en/stable/", None),
 }
 
-autodoc_mock_imports = ["pandas", "redis"]
+autodoc_mock_imports = ["numpy", "pandas", "redis"]
 
 # This config value must be a dictionary of external sites, mapping unique
 # short alias names to a base URL and a prefix.

@@ -45,8 +45,6 @@ ROOT = (
 
 REPO_TESTS = os.path.join(ROOT, "whole-repo-tests")
 
-PYUP_FILE = os.path.join(ROOT, ".pyup.yml")
-
 
 def hash_for_name(name):
     return subprocess.check_output(["git", "rev-parse", name]).decode("ascii").strip()
@@ -136,8 +134,7 @@ def modified_files():
         diff_output = subprocess.check_output(command).decode("ascii")
         for l in diff_output.split("\n"):
             filepath = l.strip()
-            if filepath:
-                assert os.path.exists(filepath), filepath
+            if filepath and os.path.exists(filepath):
                 files.add(filepath)
     return files
 

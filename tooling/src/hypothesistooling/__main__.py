@@ -20,12 +20,11 @@ import sys
 from datetime import datetime
 from glob import glob
 
-from coverage.config import CoverageConfig
-
 import hypothesistooling as tools
 import hypothesistooling.projects.conjecturerust as cr
 import hypothesistooling.projects.hypothesispython as hp
 import hypothesistooling.projects.hypothesisruby as hr
+from coverage.config import CoverageConfig
 from hypothesistooling import installers as install, releasemanagement as rm
 from hypothesistooling.scripts import pip_tool
 
@@ -44,20 +43,15 @@ def task(if_changed=()):
         def wrapped(*args, **kwargs):
             if if_changed and tools.IS_PULL_REQUEST:
                 if not tools.has_changes(if_changed + BUILD_FILES):
-                    print(
-                        "Skipping task due to no changes in %s"
-                        % (", ".join(if_changed),)
-                    )
+                    changed = ", ".join(if_changed)
+                    print(f"Skipping task due to no changes in {changed}")
                     return
             fn(*args, **kwargs)
 
         wrapped.__name__ = fn.__name__
-
         name = fn.__name__.replace("_", "-")
-
         if name != "<lambda>":
             TASKS[name] = wrapped
-
         return wrapped
 
     return accept
@@ -85,7 +79,7 @@ MASTER = tools.hash_for_name("origin/master")
 
 def do_release(package):
     if not package.has_release():
-        print("No release for %s" % (package.__name__,))
+        print(f"No release for {package.__name__}")
         return
 
     os.chdir(package.BASE_DIR)
@@ -103,7 +97,7 @@ def do_release(package):
 
     tag_name = package.tag_name()
 
-    print("Creating tag %s" % (tag_name,))
+    print(f"Creating tag {tag_name}")
 
     tools.create_tag(tag_name)
     tools.push_tag(tag_name)
@@ -136,11 +130,11 @@ def deploy():
 CURRENT_YEAR = datetime.utcnow().year
 
 
-HEADER = """
+HEADER = f"""
 # This file is part of Hypothesis, which may be found at
 # https://github.com/HypothesisWorks/hypothesis/
 #
-# Most of this work is copyright (C) 2013-%(year)s David R. MacIver
+# Most of this work is copyright (C) 2013-{CURRENT_YEAR} David R. MacIver
 # (david@drmaciver.com), but it contains contributions by others. See
 # CONTRIBUTING.rst for a full list of people who may hold copyright, and
 # consult the git log if you need to determine who owns an individual
@@ -150,9 +144,7 @@ HEADER = """
 # v. 2.0. If a copy of the MPL was not distributed with this file, You can
 # obtain one at https://mozilla.org/MPL/2.0/.
 #
-# END HEADER""".strip() % {
-    "year": CURRENT_YEAR
-}
+# END HEADER""".strip()
 
 
 @task()
@@ -218,19 +210,7 @@ def format():
                 o.write(source)
             o.write("\n")
 
-    pip_tool(
-        "autoflake",
-        "--recursive",
-        "--in-place",
-        "--exclude=compat.py",
-        "--remove-all-unused-imports",
-        "--remove-duplicate-keys",
-        "--remove-unused-variables",
-        *files_to_format,
-    )
-    pip_tool("pyupgrade", "--keep-percent-format", "--py36-plus", *files_to_format)
-    pip_tool("isort", *files_to_format)
-    pip_tool("black", "--target-version=py36", *files_to_format)
+    pip_tool("shed", *files_to_format, *doc_files_to_format)
 
 
 VALID_STARTS = (HEADER.split()[0], "#!/usr/bin/env python")
@@ -247,7 +227,7 @@ def check_format():
         with open(f, encoding="utf-8") as i:
             start = i.read(n)
             if not any(start.startswith(s) for s in VALID_STARTS):
-                print("%s has incorrect start %r" % (f, start), file=sys.stderr)
+                print(f"{f} has incorrect start {start!r}", file=sys.stderr)
                 bad = True
     assert not bad
     check_not_changed()
@@ -280,46 +260,18 @@ def compile_requirements(upgrade=False):
 @task()
 def upgrade_requirements():
     compile_requirements(upgrade=True)
-
-
-def is_pyup_branch():
-    return tools.IS_PULL_REQUEST and os.environ.get("GITHUB_HEAD_REF", "").startswith(
-        "pyup-scheduled-update"
-    )
-
-
-def push_pyup_requirements_commit():
-    """Because pyup updates each package individually, it can create a
-    requirements.txt with an incompatible set of versions.
-
-    Depending on the changes, pyup might also have introduced
-    whitespace errors.
-
-    If we've recompiled requirements.txt in Travis and made changes,
-    and this is a PR where pyup is running, push a consistent set of
-    versions as a new commit to the PR.
-    """
-    if is_pyup_branch():
-        print("Pushing new requirements, as this is a pyup pull request")
-        print("Creating commit")
-        tools.configure_git()
-        tools.git("add", "--update", "requirements")
-        tools.git("commit", "-m", "Bump requirements for pyup pull request")
-
-        print("Pushing to GitHub")
-        tools.git("push", "origin", f"HEAD:{os.environ['GITHUB_HEAD_REF']}")
+    subprocess.call(["./build.sh", "format"], cwd=tools.ROOT)  # exits 1 if changed
+    if hp.has_source_changes() and not os.path.isfile(hp.RELEASE_FILE):
+        with open(hp.RELEASE_FILE, mode="w") as f:
+            f.write(
+                "RELEASE_TYPE: patch\n\nThis patch updates our autoformatting "
+                "tools, improving our code style without any API changes.\n"
+            )
 
 
 @task()
 def check_requirements():
-    if is_pyup_branch() and tools.last_committer() != tools.TOOLING_COMMITER_NAME:
-        # Recompile to fix broken formatting etc., but ensure there can't be a loop.
-        compile_requirements(upgrade=True)
-        if tools.has_uncommitted_changes("requirements"):
-            push_pyup_requirements_commit()
-            raise RuntimeError("Pushed new requirements; check next build.")
-    else:
-        compile_requirements(upgrade=False)
+    compile_requirements(upgrade=False)
 
 
 @task(if_changed=hp.HYPOTHESIS_PYTHON)
@@ -358,15 +310,10 @@ def run_tox(task, version):
 # Via https://github.com/pyenv/pyenv/tree/master/plugins/python-build/share/python-build
 PY36 = "3.6.12"
 PY37 = "3.7.9"
-PY38 = "3.8.6"
-PY39 = "3.9.0"
+PY38 = PYMAIN = "3.8.7"  # Note: keep this in sync with build.sh
+PY39 = "3.9.1"
 PYPY36 = "pypy3.6-7.3.1"
 PYPY37 = "pypy3.7-7.3.2"
-
-
-@task()
-def install_core():
-    install.python_executable(PY36)
 
 
 # ALIASES are the executable names for each Python version
@@ -374,7 +321,7 @@ ALIASES = {PYPY36: "pypy3", PYPY37: "pypy3"}
 
 for n in [PY36, PY37, PY38, PY39]:
     major, minor, patch = n.replace("-dev", ".").split(".")
-    ALIASES[n] = "python%s.%s" % (major, minor)
+    ALIASES[n] = f"python{major}.{minor}"
 
 
 python_tests = task(
@@ -417,16 +364,16 @@ def check_pypy37():
 
 
 def standard_tox_task(name):
-    TASKS["check-" + name] = python_tests(lambda: run_tox(name, PY36))
+    TASKS["check-" + name] = python_tests(lambda: run_tox(name, PYMAIN))
 
 
 standard_tox_task("nose")
 standard_tox_task("pytest43")
 
 for n in [22, 30, 31]:
-    standard_tox_task("django%d" % (n,))
+    standard_tox_task(f"django{n}")
 for n in [25, 100, 111]:
-    standard_tox_task("pandas%d" % (n,))
+    standard_tox_task(f"pandas{n}")
 
 standard_tox_task("coverage")
 standard_tox_task("conjecture-coverage")
@@ -434,17 +381,12 @@ standard_tox_task("conjecture-coverage")
 
 @task()
 def check_quality():
-    run_tox("quality", PY36)
+    run_tox("quality", PYMAIN)
 
 
-examples_task = task(
-    if_changed=(hp.PYTHON_SRC, os.path.join(hp.HYPOTHESIS_PYTHON, "examples"))
-)
-
-
-@examples_task
+@task(if_changed=(hp.PYTHON_SRC, os.path.join(hp.HYPOTHESIS_PYTHON, "examples")))
 def check_examples3():
-    run_tox("examples3", PY36)
+    run_tox("examples3", PYMAIN)
 
 
 @task()
@@ -473,6 +415,27 @@ def lint_ruby():
 def check_ruby_tests():
     hr.rake_task("rspec")
     hr.rake_task("minitest")
+
+
+@ruby_task
+def format_rust_in_ruby():
+    hr.cargo("fmt")
+
+
+@ruby_task
+def check_rust_in_ruby_format():
+    hr.cargo("fmt", "--", "--check")
+
+
+@ruby_task
+def lint_rust_in_ruby():
+    hr.cargo("clippy")
+
+
+@ruby_task
+def audit_rust_in_ruby():
+    hr.cargo("install", "cargo-audit")
+    hr.cargo("audit")
 
 
 @task()
@@ -506,6 +469,12 @@ def check_conjecture_rust_format():
 @rust_task
 def lint_conjecture_rust():
     cr.cargo("clippy")
+
+
+@rust_task
+def audit_conjecture_rust():
+    cr.cargo("install", "cargo-audit")
+    cr.cargo("audit")
 
 
 @task()
