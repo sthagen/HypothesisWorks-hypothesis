@@ -18,6 +18,38 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.4.3:
+
+------------------
+6.4.3 - 2021-03-04
+------------------
+
+This patch fixes :issue:`2794`, where nesting :func:`~hypothesis.strategies.deferred`
+strategies within :func:`~hypothesis.strategies.recursive` strategies could
+trigger an internal assertion.  While it was always possible to get the same
+results from a more sensible strategy, the convoluted form now works too.
+
+.. _v6.4.2:
+
+------------------
+6.4.2 - 2021-03-04
+------------------
+
+This patch fixes several problems with ``mypy`` when `--no-implicit-reexport <https://mypy.readthedocs.io/en/stable/command_line.html#cmdoption-mypy-no-implicit-reexport>`_ was activated in user projects.
+
+Thanks to Nikita Sobolev for fixing :issue:`2884`!
+
+.. _v6.4.1:
+
+------------------
+6.4.1 - 2021-03-04
+------------------
+
+This patch fixes an exception that occurs when using type unions of
+the :pypi:`typing_extensions` ``Literal`` backport on Python 3.6.
+
+Thanks to Ben Anhalt for identifying and fixing this bug.
+
 .. _v6.4.0:
 
 ------------------
