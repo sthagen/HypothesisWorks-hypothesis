@@ -14,6 +14,7 @@
 # END HEADER
 
 import os
+import pathlib
 import re
 import subprocess
 import sys
@@ -257,6 +258,29 @@ def compile_requirements(upgrade=False):
         )
 
 
+def update_python_versions():
+    cmd = "~/.cache/hypothesis-build-runtimes/pyenv/bin/pyenv install --list"
+    result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
+    # pyenv reports available versions in chronological order, so we keep the newest
+    # *unless* our current ends with a digit (is stable) and the candidate does not.
+    digits = tuple("0123456789")
+    best = {}
+    for line in map(str.strip, result.splitlines()):
+        m = re.match(r"(?:pypy)?3\.\d+", line)
+        if m:
+            key = m.group()
+            if key.endswith(digits) or not best.get(key, key).endswith(digits):
+                best[key] = line
+    print(best)
+    thisfile = pathlib.Path(__file__)
+    before = after = thisfile.read_text()
+    for key, version in best.items():
+        var = key.upper().replace(".", "")
+        after = re.sub(rf'({var} = .*?"){key}[^"]+', rf"\g<1>{version}", after)
+    if before != after:
+        thisfile.write_text(after)
+
+
 @task()
 def upgrade_requirements():
     compile_requirements(upgrade=True)
@@ -267,6 +291,7 @@ def upgrade_requirements():
                 "RELEASE_TYPE: patch\n\nThis patch updates our autoformatting "
                 "tools, improving our code style without any API changes.\n"
             )
+    update_python_versions()
 
 
 @task()
@@ -307,19 +332,20 @@ def run_tox(task, version):
     pip_tool("tox", "-e", task, env=env, cwd=hp.HYPOTHESIS_PYTHON)
 
 
-# Via https://github.com/pyenv/pyenv/tree/master/plugins/python-build/share/python-build
+# See update_python_versions() above
 PY36 = "3.6.13"
 PY37 = "3.7.10"
-PY38 = PYMAIN = "3.8.8"  # Note: keep this in sync with build.sh
+PY38 = PYMAIN = "3.8.8"  # Note: keep this in sync with build.sh and GH Actions main.yml
 PY39 = "3.9.2"
-PYPY36 = "pypy3.6-7.3.1"
-PYPY37 = "pypy3.7-7.3.2"
+PY310 = "3.10-dev"
+PYPY36 = "pypy3.6-7.3.3"
+PYPY37 = "pypy3.7-7.3.3"
 
 
 # ALIASES are the executable names for each Python version
 ALIASES = {PYPY36: "pypy3", PYPY37: "pypy3"}
 
-for n in [PY36, PY37, PY38, PY39]:
+for n in [PY36, PY37, PY38, PY39, PY310]:
     major, minor, patch = n.replace("-dev", ".").split(".")
     ALIASES[n] = f"python{major}.{minor}"
 
@@ -351,6 +377,11 @@ def check_py38():
 @python_tests
 def check_py39():
     run_tox("py39-full", PY39)
+
+
+@python_tests
+def check_py310():
+    run_tox("py310-full", PY310)
 
 
 @python_tests

@@ -2,8 +2,8 @@
 
 Gem::Specification.new do |s|
   s.name        = 'hypothesis-specs'
-  s.version     = '0.6.1'
-  s.date        = '2021-02-01'
+  s.version     = '0.7.0'
+  s.date        = '2021-03-12'
   s.description = <<~DESCRIPTION
     Hypothesis is a powerful, flexible, and easy to use library for property-based testing.
 DESCRIPTION
@@ -18,5 +18,4 @@ DESCRIPTION
   s.license     = 'MPL-2.0'
   s.extensions = Dir['ext/extconf.rb']
   s.add_dependency 'rutie', '~> 0.0.3'
-  s.add_runtime_dependency 'rake', '>= 10.0', '< 13.0'
 end
