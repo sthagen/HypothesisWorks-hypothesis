@@ -1,3 +1,7 @@
+# Hypothesis for Ruby 0.7.1 (2021-03-27)
+
+This patch fixes some internal typos.  There is no user-visible change.
+
 # Hypothesis for Ruby 0.7.0 (2021-03-12)
 
 Moves rake from being a a runtime dependency to being a development dependency. Rake is used to run tests but is not required for consumers of hypothesis-ruby.
@@ -48,7 +52,7 @@ manually pass a seed.
 
 # Hypothesis for Ruby 0.1.2 (2018-09-24)
 
-This release makes the code useable via a direct require.
+This release makes the code usable via a direct require.
 I.e. no need for rubygems or any special LOAD_PATH.
 
 For example, if the base directory were in /opt, you'd just say:
