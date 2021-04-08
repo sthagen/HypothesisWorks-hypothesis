@@ -18,6 +18,50 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.8.9:
+
+------------------
+6.8.9 - 2021-04-07
+------------------
+
+This patch fixes :func:`~hypothesis.strategies.from_type` with
+:mod:`abstract types <python:abc>` which have either required but
+non-type-annotated arguments to ``__init__``, or where
+:func:`~hypothesis.strategies.from_type` can handle some concrete
+subclasses but not others.
+
+.. _v6.8.8:
+
+------------------
+6.8.8 - 2021-04-07
+------------------
+
+This patch teaches :command:`hypothesis write` to check for possible roundtrips
+in several more cases, such as by looking for an inverse in the module which
+defines the function to test.
+
+.. _v6.8.7:
+
+------------------
+6.8.7 - 2021-04-07
+------------------
+
+This patch adds a more helpful error message if you try to call
+:func:`~hypothesis.strategies.sampled_from` on an :class:`~python:enum.Enum`
+which has no members, but *does* have :func:`~python:dataclasses.dataclass`-style
+annotations (:issue:`2923`).
+
+.. _v6.8.6:
+
+------------------
+6.8.6 - 2021-04-06
+------------------
+
+The :func:`~hypothesis.strategies.fixed_dictionaries` strategy now preserves
+dict iteration order instead of sorting the keys.  This also affects the
+pretty-printing of keyword arguments to :func:`@given() <hypothesis.given>`
+(:issue:`2913`).
+
 .. _v6.8.5:
 
 ------------------
