@@ -272,8 +272,11 @@ def compile_requirements(upgrade=False):
 
 
 def update_python_versions():
-    cmd = "~/.cache/hypothesis-build-runtimes/pyenv/bin/pyenv install --list"
-    result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
+    pyenv_dir = os.path.expanduser("~/.cache/hypothesis-build-runtimes/pyenv")
+    subprocess.run("git pull", shell=True, cwd=pyenv_dir)
+    result = subprocess.run(
+        pyenv_dir + "/bin/pyenv install --list", shell=True, stdout=subprocess.PIPE
+    ).stdout.decode()
     # pyenv reports available versions in chronological order, so we keep the newest
     # *unless* our current ends with a digit (is stable) and the candidate does not.
     digits = tuple("0123456789")
@@ -414,7 +417,7 @@ def standard_tox_task(name):
 standard_tox_task("nose")
 standard_tox_task("pytest46")
 
-for n in [22, 30, 31]:
+for n in [22, 31, 32]:
     standard_tox_task(f"django{n}")
 for n in [25, 100, 111]:
     standard_tox_task(f"pandas{n}")

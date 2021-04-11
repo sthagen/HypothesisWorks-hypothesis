@@ -18,6 +18,44 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.9.0:
+
+------------------
+6.9.0 - 2021-04-11
+------------------
+
+This release teaches :func:`~hypothesis.strategies.from_type` how to see
+through :obj:`python:typing.Annotated`.  Thanks to Vytautas Strimaitis
+for reporting and fixing :issue:`2919`!
+
+.. _v6.8.12:
+
+-------------------
+6.8.12 - 2021-04-11
+-------------------
+
+If :pypi:`rich` is installed, the :command:`hypothesis write` command
+will use it to syntax-highlight the :doc:`Ghostwritten <ghostwriter>`
+code.
+
+.. _v6.8.11:
+
+-------------------
+6.8.11 - 2021-04-11
+-------------------
+
+This patch improves an error message from :func:`~hypothesis.strategies.from_type`
+when :func:`~hypothesis.strategies.builds` would be more suitable (:issue:`2930`).
+
+.. _v6.8.10:
+
+-------------------
+6.8.10 - 2021-04-11
+-------------------
+
+This patch updates the type annotations for :func:`~hypothesis.extra.numpy.arrays` to reflect that
+``shape: SearchStrategy[int]`` is supported.
+
 .. _v6.8.9:
 
 ------------------
