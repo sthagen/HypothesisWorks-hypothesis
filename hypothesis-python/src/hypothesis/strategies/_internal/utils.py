@@ -15,15 +15,16 @@
 
 import threading
 from inspect import signature
-from typing import Callable, Dict
+from typing import TYPE_CHECKING, Callable, Dict
 
 from hypothesis.internal.cache import LRUReusedCache
 from hypothesis.internal.floats import float_to_int
 from hypothesis.internal.reflection import proxies
-from hypothesis.strategies._internal.lazy import LazyStrategy
-from hypothesis.strategies._internal.strategies import SearchStrategy, T
 
-_strategies: Dict[str, Callable[..., SearchStrategy]] = {}
+if TYPE_CHECKING:
+    from hypothesis.strategies._internal.strategies import SearchStrategy, T
+
+_strategies: Dict[str, Callable[..., "SearchStrategy"]] = {}
 
 
 class FloatKey:
@@ -62,7 +63,9 @@ def clear_cache() -> None:
     cache.clear()
 
 
-def cacheable(fn: T) -> T:
+def cacheable(fn: "T") -> "T":
+    from hypothesis.strategies._internal.strategies import SearchStrategy
+
     @proxies(fn)
     def cached_strategy(*args, **kwargs):
         try:
@@ -87,23 +90,40 @@ def cacheable(fn: T) -> T:
 
 
 def defines_strategy(
-    *, force_reusable_values: bool = False, try_non_lazy: bool = False
-) -> Callable[[T], T]:
+    *,
+    force_reusable_values: bool = False,
+    try_non_lazy: bool = False,
+    never_lazy: bool = False,
+) -> Callable[["T"], "T"]:
     """Returns a decorator for strategy functions.
 
-    If force_reusable is True, the generated values are assumed to be
-    reusable, i.e. immutable and safe to cache, across multiple test
-    invocations.
+    If ``force_reusable_values`` is True, the returned strategy will be marked
+    with ``.has_reusable_values == True`` even if it uses maps/filters or
+    non-reusable strategies internally. This tells our numpy/pandas strategies
+    that they can implicitly use such strategies as background values.
 
-    If try_non_lazy is True, attempt to execute the strategy definition
+    If ``try_non_lazy`` is True, attempt to execute the strategy definition
     function immediately, so that a LazyStrategy is only returned if this
     raises an exception.
+
+    If ``never_lazy`` is True, the decorator performs no lazy-wrapping at all,
+    and instead returns the original function.
     """
 
     def decorator(strategy_definition):
         """A decorator that registers the function as a strategy and makes it
         lazily evaluated."""
         _strategies[strategy_definition.__name__] = signature(strategy_definition)
+
+        if never_lazy:
+            assert not try_non_lazy
+            # We could potentially support never_lazy + force_reusable_values
+            # with a suitable wrapper, but currently there are no callers that
+            # request this combination.
+            assert not force_reusable_values
+            return strategy_definition
+
+        from hypothesis.strategies._internal.lazy import LazyStrategy
 
         @proxies(strategy_definition)
         def accept(*args, **kwargs):
@@ -119,6 +139,8 @@ def defines_strategy(
                     pass
             result = LazyStrategy(strategy_definition, args, kwargs)
             if force_reusable_values:
+                # Setting `force_has_reusable_values` here causes the recursive
+                # property code to set `.has_reusable_values == True`.
                 result.force_has_reusable_values = True
                 assert result.has_reusable_values
             return result

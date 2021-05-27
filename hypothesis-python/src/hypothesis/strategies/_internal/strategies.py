@@ -47,6 +47,7 @@ from hypothesis.internal.conjecture.utils import (
 from hypothesis.internal.coverage import check_function
 from hypothesis.internal.lazyformat import lazyformat
 from hypothesis.internal.reflection import get_pretty_function_description
+from hypothesis.strategies._internal.utils import defines_strategy
 from hypothesis.utils.conventions import UniqueIdentifier
 
 Ex = TypeVar("Ex", covariant=True)
@@ -242,6 +243,12 @@ class SearchStrategy(Generic[Ex]):
 
     # Returns True if values from this strategy can safely be reused without
     # this causing unexpected behaviour.
+
+    # True if values from this strategy can be implicitly reused (e.g. as
+    # background values in a numpy array) without causing surprising
+    # user-visible behaviour. Should be false for built-in strategies that
+    # produce mutable values, and for strategies that have been mapped/filtered
+    # by arbitrary user-provided functions.
     has_reusable_values = recursive_property("has_reusable_values", True)
 
     # Whether this strategy is suitable for holding onto in a cache.
@@ -476,7 +483,11 @@ class SampledFromStrategy(SearchStrategy):
         )
 
     def calc_has_reusable_values(self, recur):
-        return True
+        # Because our custom .map/.filter implementations skip the normal
+        # wrapper strategies (which would automatically return False for us),
+        # we need to manually return False here if any transformations have
+        # been applied.
+        return not self._transformations
 
     def calc_is_cacheable(self, recur):
         return is_simple_data(self.elements)
@@ -714,6 +725,7 @@ def one_of(*args: SearchStrategy[Any]) -> SearchStrategy[Any]:
     raise NotImplementedError
 
 
+@defines_strategy(never_lazy=True)
 def one_of(*args):  # noqa: F811
     # Mypy workaround alert:  Any is too loose above; the return parameter
     # should be the union of the input parameters.  Unfortunately, Mypy <=0.600

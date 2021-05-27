@@ -36,6 +36,7 @@ their individual contributions.
 * `Cristi Cobzarenco <https://github.com/cristicbz>`_ (cristi@reinfer.io)
 * `Damon Francisco <https://github.com/dtfrancisco>`_ (damontfrancisco@yahoo.com)
 * `Daniel J. West <https://github.com/danieljwest>`_
+* `Daniel Knell <https://github.com/danielknell>`_ (contact@danielknell.co.uk)
 * `David Bonner <https://github.com/rascalking>`_ (dbonner@gmail.com)
 * `David Chudzicki <https://github.com/dchudz>`_ (dchudz@gmail.com)
 * `David Mascharka <https://github.com/davidmascharka>`_
@@ -103,6 +104,7 @@ their individual contributions.
 * `Paul Kehrer <https://github.com/reaperhulk>`_
 * `Paul Lorett Amazona <https://github.com/whatevergeek>`_
 * `Paul Stiverson <https://github.com/thismatters>`_
+* `Pax (R. Margret) W. <https://github.com/paxcodes>`_
 * `Peadar Coyle <https://github.com/springcoil>`_ (peadarcoyle@gmail.com)
 * `Petr Viktorin <https://github.com/encukou>`_
 * `Pierre-Jean Campigotto <https://github.com/PJCampi>`_

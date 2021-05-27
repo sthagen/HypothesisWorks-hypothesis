@@ -18,6 +18,87 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.13.6:
+
+-------------------
+6.13.6 - 2021-05-26
+-------------------
+
+This patch fixes a bug that caused :func:`~hypothesis.strategies.integers`
+to shrink towards negative values instead of positive values in some cases.
+
+.. _v6.13.5:
+
+-------------------
+6.13.5 - 2021-05-24
+-------------------
+
+This patch fixes rare cases where ``hypothesis write --binary-op`` could
+print :doc:`reproducing instructions <reproducing>` from the internal
+search for an identity element.
+
+.. _v6.13.4:
+
+-------------------
+6.13.4 - 2021-05-24
+-------------------
+
+This patch removes some unnecessary intermediate list-comprehensions,
+using the latest versions of :pypi:`pyupgrade` and :pypi:`shed`.
+
+.. _v6.13.3:
+
+-------------------
+6.13.3 - 2021-05-23
+-------------------
+
+This patch adds a ``.hypothesis`` property to invalid test functions, bringing
+them inline with valid tests and fixing a bug where :pypi:`pytest-asyncio` would
+swallow the real error message and mistakenly raise a version incompatibility
+error.
+
+.. _v6.13.2:
+
+-------------------
+6.13.2 - 2021-05-23
+-------------------
+
+Some of Hypothesis's numpy/pandas strategies use a ``fill`` argument to speed
+up generating large arrays, by generating a single fill value and sharing that
+value among many array slots instead of filling every single slot individually.
+
+When no ``fill`` argument is provided, Hypothesis tries to detect whether it is
+OK to automatically use the ``elements`` argument as a fill strategy, so that
+it can still use the faster approach.
+
+This patch fixes a bug that would cause that optimization to trigger in some
+cases where it isn't 100% guaranteed to be OK.
+
+If this makes some of your numpy/pandas tests run more slowly, try adding an
+explicit ``fill`` argument to the relevant strategies to ensure that Hypothesis
+always uses the faster approach.
+
+.. _v6.13.1:
+
+-------------------
+6.13.1 - 2021-05-20
+-------------------
+
+This patch strengthens some internal import-time consistency checks for the
+built-in strategies.
+
+There is no user-visible change.
+
+.. _v6.13.0:
+
+-------------------
+6.13.0 - 2021-05-18
+-------------------
+
+This release adds URL fragment generation to the :func:`~hypothesis.provisional.urls`
+strategy (:issue:`2908`). Thanks to Pax (R. Margret) for contributing this patch at the
+`PyCon US Mentored Sprints <https://us.pycon.org/2021/summits/mentored-sprints/>`__!
+
 .. _v6.12.1:
 
 -------------------

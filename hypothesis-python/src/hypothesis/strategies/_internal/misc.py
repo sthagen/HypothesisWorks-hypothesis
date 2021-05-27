@@ -51,9 +51,6 @@ class JustStrategy(SampledFromStrategy):
             return "none()" + suffix
         return f"just({get_pretty_function_description(self.value)}){suffix}"
 
-    def calc_has_reusable_values(self, recur):
-        return True
-
     def calc_is_cacheable(self, recur):
         return is_simple_data(self.value)
 
@@ -70,6 +67,7 @@ class JustStrategy(SampledFromStrategy):
         return self._transform(self.value)
 
 
+@defines_strategy(never_lazy=True)
 def just(value: T) -> SearchStrategy[T]:
     """Return a strategy which only generates ``value``.
 
@@ -123,6 +121,7 @@ NOTHING = Nothing()
 
 
 @cacheable
+@defines_strategy(never_lazy=True)
 def nothing() -> SearchStrategy:
     """This strategy never successfully draws a value and will always reject on
     an attempt to draw.
