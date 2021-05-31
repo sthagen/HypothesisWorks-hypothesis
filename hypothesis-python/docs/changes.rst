@@ -18,6 +18,36 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.13.10:
+
+--------------------
+6.13.10 - 2021-05-30
+--------------------
+
+This release adjusts some internal code to help make our test suite more
+reliable.
+
+There is no user-visible change.
+
+.. _v6.13.9:
+
+-------------------
+6.13.9 - 2021-05-30
+-------------------
+
+This patch cleans up some internal code related to filtering strategies.
+
+There is no user-visible change.
+
+.. _v6.13.8:
+
+-------------------
+6.13.8 - 2021-05-28
+-------------------
+
+This patch slightly improves the performance of some internal code for
+generating integers.
+
 .. _v6.13.7:
 
 -------------------

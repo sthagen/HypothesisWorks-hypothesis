@@ -102,7 +102,7 @@ jobs:
         pip install -r requirements/test.txt fakeredis typing-extensions
         pip install hypothesis-python/[all]
     - name: Run tests
-      run: python -m pytest --numprocesses auto hypothesis-python/tests/
+      run: python -m pytest --numprocesses auto hypothesis-python/tests/ --ignore-glob=hypothesis-python/tests/quality/*.py
 
   test-osx:
     runs-on: macos-latest
@@ -119,6 +119,13 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: "3.8"
+    - name: Restore cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cache
+          ~/Library/Caches/pip
+        key: deps-${{ runner.os }}-${{ hashFiles('requirements/tools.txt') }}-${{ matrix.task }}
     - name: Run tests
       run: TASK=${{ matrix.task }} ./build.sh
 
