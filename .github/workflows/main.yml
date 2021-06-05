@@ -1,5 +1,10 @@
 name: Hypothesis CI
 
+env:
+  # Tell pytest and other tools to produce coloured terminal output.
+  # Make sure this is also in the "passenv" section of the tox config.
+  PY_COLORS: 1
+
 on:
   push:
     branches: [ master ]
@@ -66,6 +71,16 @@ jobs:
           deps-${{ runner.os }}
     - name: Run tests
       run: TASK=${{ matrix.task }} ./build.sh
+    - name: Upload coverage data
+      uses: actions/upload-artifact@v2
+      # Invoke the magic `always` function to run on both success and failure.
+      if: ${{ always() && endsWith(matrix.task, '-coverage') }}
+      with:
+        name: ${{ matrix.task }}-data
+        path: |
+          hypothesis-python/.coverage*
+          !hypothesis-python/.coveragerc
+          hypothesis-python/branch-check
 
   test-win:
     runs-on: windows-latest

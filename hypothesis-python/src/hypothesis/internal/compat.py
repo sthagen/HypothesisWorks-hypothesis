@@ -14,7 +14,6 @@
 # END HEADER
 
 import codecs
-import importlib
 import inspect
 import platform
 import sys
@@ -22,14 +21,6 @@ import typing
 
 PYPY = platform.python_implementation() == "PyPy"
 WINDOWS = platform.system() == "Windows"
-
-
-def bit_length(n):
-    return n.bit_length()
-
-
-def str_to_bytes(s):
-    return s.encode(a_good_encoding())
 
 
 def escape_unicode_characters(s):
@@ -48,30 +39,12 @@ def int_to_byte(i):
     return bytes([i])
 
 
-def a_good_encoding():
-    return "utf-8"
-
-
-def to_unicode(x):
-    if isinstance(x, str):
-        return x
-    else:
-        return x.decode(a_good_encoding())
-
-
-def qualname(f):
-    try:
-        return f.__qualname__
-    except AttributeError:
-        return f.__name__
-
-
 try:
     # These types are new in Python 3.7, but also (partially) backported to the
     # typing backport on PyPI.  Use if possible; or fall back to older names.
     typing_root_type = (typing._Final, typing._GenericAlias)  # type: ignore
     ForwardRef = typing.ForwardRef  # type: ignore
-except AttributeError:
+except AttributeError:  # pragma: no cover
     typing_root_type = (typing.TypingMeta, typing.TypeVar)  # type: ignore
     try:
         typing_root_type += (typing._Union,)  # type: ignore
@@ -139,13 +112,12 @@ def get_type_hints(thing):
                         hints[p.name] = typing.Optional[p.annotation]
                     else:
                         hints[p.name] = p.annotation
-    except (AttributeError, TypeError, NameError):
+                else:  # pragma: no cover
+                    pass
+    except (AttributeError, TypeError, NameError):  # pragma: no cover
         pass
 
     return hints
-
-
-importlib_invalidate_caches = getattr(importlib, "invalidate_caches", lambda: ())
 
 
 def update_code_location(code, newfile, newlineno):
@@ -164,40 +136,31 @@ def update_code_location(code, newfile, newlineno):
         # added to facilitate future-proof code.  See BPO-37032 for details.
         return code.replace(co_filename=newfile, co_firstlineno=newlineno)
 
-    # This field order is accurate for 3.5 - 3.7, but not 3.8 when a new field
-    # was added for positional-only arguments.  However it also added a .replace()
-    # method that we use instead of field indices, so they're fine as-is.
-    CODE_FIELD_ORDER = [
-        "co_argcount",
-        "co_kwonlyargcount",
-        "co_nlocals",
-        "co_stacksize",
-        "co_flags",
-        "co_code",
-        "co_consts",
-        "co_names",
-        "co_varnames",
-        "co_filename",
-        "co_name",
-        "co_firstlineno",
-        "co_lnotab",
-        "co_freevars",
-        "co_cellvars",
-    ]
-    unpacked = [getattr(code, name) for name in CODE_FIELD_ORDER]
-    unpacked[CODE_FIELD_ORDER.index("co_filename")] = newfile
-    unpacked[CODE_FIELD_ORDER.index("co_firstlineno")] = newlineno
-    return type(code)(*unpacked)
-
-
-def cast_unicode(s, encoding=None):
-    if isinstance(s, bytes):
-        return s.decode(encoding or a_good_encoding(), "replace")
-    return s
-
-
-def get_stream_enc(stream, default=None):
-    return getattr(stream, "encoding", None) or default
+    else:  # pragma: no cover
+        # This field order is accurate for 3.5 - 3.7, but not 3.8 when a new field
+        # was added for positional-only arguments.  However it also added a .replace()
+        # method that we use instead of field indices, so they're fine as-is.
+        CODE_FIELD_ORDER = [
+            "co_argcount",
+            "co_kwonlyargcount",
+            "co_nlocals",
+            "co_stacksize",
+            "co_flags",
+            "co_code",
+            "co_consts",
+            "co_names",
+            "co_varnames",
+            "co_filename",
+            "co_name",
+            "co_firstlineno",
+            "co_lnotab",
+            "co_freevars",
+            "co_cellvars",
+        ]
+        unpacked = [getattr(code, name) for name in CODE_FIELD_ORDER]
+        unpacked[CODE_FIELD_ORDER.index("co_filename")] = newfile
+        unpacked[CODE_FIELD_ORDER.index("co_firstlineno")] = newlineno
+        return type(code)(*unpacked)
 
 
 # Under Python 2, math.floor and math.ceil returned floats, which cannot
@@ -223,9 +186,10 @@ def ceil(x):
 def bad_django_TestCase(runner):
     if runner is None or "django.test" not in sys.modules:
         return False
-    if not isinstance(runner, sys.modules["django.test"].TransactionTestCase):
-        return False
+    else:  # pragma: no cover
+        if not isinstance(runner, sys.modules["django.test"].TransactionTestCase):
+            return False
 
-    from hypothesis.extra.django._impl import HypothesisTestCase
+        from hypothesis.extra.django._impl import HypothesisTestCase
 
-    return not isinstance(runner, HypothesisTestCase)
+        return not isinstance(runner, HypothesisTestCase)

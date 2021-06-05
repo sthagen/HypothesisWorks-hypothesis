@@ -21,25 +21,19 @@ import sys
 from collections import OrderedDict, abc
 
 from hypothesis.errors import InvalidArgument
-from hypothesis.internal.compat import (
-    bit_length,
-    floor,
-    int_from_bytes,
-    qualname,
-    str_to_bytes,
-)
+from hypothesis.internal.compat import floor, int_from_bytes
 from hypothesis.internal.floats import int_to_float
 
 LABEL_MASK = 2 ** 64 - 1
 
 
 def calc_label_from_name(name: str) -> int:
-    hashed = hashlib.sha384(str_to_bytes(name)).digest()
+    hashed = hashlib.sha384(name.encode()).digest()
     return int_from_bytes(hashed[:8])
 
 
 def calc_label_from_cls(cls: type) -> int:
-    return calc_label_from_name(qualname(cls))
+    return calc_label_from_name(cls.__qualname__)
 
 
 def combine_labels(*labels: int) -> int:
@@ -95,7 +89,7 @@ def integer_range(data, lower, upper, center=None):
 
     assert gap > 0
 
-    bits = bit_length(gap)
+    bits = gap.bit_length()
     probe = gap + 1
 
     if bits > 24 and data.draw_bits(3):

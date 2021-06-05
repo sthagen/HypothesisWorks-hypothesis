@@ -18,6 +18,52 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.13.14:
+
+--------------------
+6.13.14 - 2021-06-04
+--------------------
+
+This patch improves the :func:`~hypothesis.strategies.tuples` strategy
+type annotations, to preserve the element types for up to length-five
+tuples (:issue:`3005`).
+
+As for :func:`~hypothesis.strategies.one_of`, this is the best we can do
+before a `planned extension <https://mail.python.org/archives/list/typing-sig@python.org/thread/LOQFV3IIWGFDB7F5BDX746EZJG4VVBI3/>`__
+to :pep:`646` is released, hopefully in Python 3.11.
+
+.. _v6.13.13:
+
+--------------------
+6.13.13 - 2021-06-04
+--------------------
+
+This patch teaches :doc:`the Ghostwriter <ghostwriter>` how to find
+:np-ref:`custom ufuncs <ufuncs.html>` from *any* module that defines them,
+and that ``yaml.unsafe_load()`` does not undo ``yaml.safe_load()``.
+
+.. _v6.13.12:
+
+--------------------
+6.13.12 - 2021-06-03
+--------------------
+
+This patch reduces the amount of internal code excluded from our test suite's
+code coverage checks.
+
+There is no user-visible change.
+
+.. _v6.13.11:
+
+--------------------
+6.13.11 - 2021-06-02
+--------------------
+
+This patch removes some old internal helper code that previously existed
+to make Python 2 compatibility easier.
+
+There is no user-visible change.
+
 .. _v6.13.10:
 
 --------------------

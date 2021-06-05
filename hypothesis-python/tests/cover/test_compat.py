@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # This file is part of Hypothesis, which may be found at
 # https://github.com/HypothesisWorks/hypothesis/
 #
@@ -15,8 +13,29 @@
 #
 # END HEADER
 
-import hashlib
-import sys
+import math
 
-if __name__ == "__main__":
-    print(hashlib.sha384(sys.stdin.read().encode()).hexdigest()[:10])
+import pytest
+
+from hypothesis.internal.compat import ceil, floor
+
+floor_ceil_values = [
+    -10.7,
+    -10.3,
+    -0.5,
+    -0.0,
+    0,
+    0.5,
+    10.3,
+    10.7,
+]
+
+
+@pytest.mark.parametrize("value", floor_ceil_values)
+def test_our_floor_agrees_with_math_floor(value):
+    assert floor(value) == math.floor(value)
+
+
+@pytest.mark.parametrize("value", floor_ceil_values)
+def test_our_ceil_agrees_with_math_ceil(value):
+    assert ceil(value) == math.ceil(value)
