@@ -18,6 +18,15 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.14.7:
+
+-------------------
+6.14.7 - 2021-08-14
+-------------------
+
+This patch fixes :issue:`3050`, where :pypi:`attrs` classes could
+cause an internal error in the :doc:`ghostwriter <ghostwriter>`.
+
 .. _v6.14.6:
 
 -------------------
@@ -5773,7 +5782,7 @@ This is a no-op release, which implements automatic DOI minting and code
 archival of Hypothesis via `Zenodo <https://zenodo.org/>`_. Thanks to
 CERN and the EU *Horizon 2020* programme for providing this service!
 
-Check our :gh-file:`CITATION` file for details, or head right on over to
+Check our :gh-file:`CITATION.cff` file for details, or head right on over to
 `doi.org/10.5281/zenodo.1412597 <https://doi.org/10.5281/zenodo.1412597>`_
 
 .. _v3.71.3:
