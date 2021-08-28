@@ -18,6 +18,51 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.17.0:
+
+-------------------
+6.17.0 - 2021-08-27
+-------------------
+
+This release adds type annotations to the :doc:`stateful testing <stateful>` API.
+
+Thanks to Ruben Opdebeeck for this contribution!
+
+.. _v6.16.0:
+
+-------------------
+6.16.0 - 2021-08-27
+-------------------
+
+This release adds the :class:`~hypothesis.strategies.DrawFn` type as a reusable
+type hint for the ``draw`` argument of
+:func:`@composite <hypothesis.strategies.composite>` functions.
+
+Thanks to Ruben Opdebeeck for this contribution!
+
+.. _v6.15.0:
+
+-------------------
+6.15.0 - 2021-08-22
+-------------------
+
+This release emits a more useful error message when :func:`@given() <hypothesis.given>`
+is applied to a coroutine function, i.e. one defined using ``async def`` (:issue:`3054`).
+
+This was previously only handled by the generic :obj:`~hypothesis.HealthCheck.return_value`
+health check, which doesn't direct you to use either :ref:`a custom executor <custom-function-execution>`
+or a library such as :pypi:`pytest-trio` or :pypi:`pytest-asyncio` to handle it for you.
+
+.. _v6.14.9:
+
+-------------------
+6.14.9 - 2021-08-20
+-------------------
+
+This patch fixes a regression in Hypothesis 6.14.8, where :func:`~hypothesis.strategies.from_type`
+failed to resolve types which inherit from multiple parametrised generic types,
+affecting the :pypi:`returns` package (:issue:`3060`).
+
 .. _v6.14.8:
 
 -------------------
