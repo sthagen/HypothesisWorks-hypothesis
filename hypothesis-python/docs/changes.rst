@@ -18,6 +18,54 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.18.0:
+
+-------------------
+6.18.0 - 2021-09-06
+-------------------
+
+This release teaches :func:`~hypothesis.strategies.from_type` a neat trick:
+when resolving an :obj:`python:typing.Annotated` type, if one of the annotations
+is a strategy object we use that as the inferred strategy.  For example:
+
+.. code-block:: python
+
+    PositiveInt = Annotated[int, st.integers(min_value=1)]
+
+If there are multiple strategies, we use the last outer-most annotation.
+See :issue:`2978` and :pull:`3082` for discussion.
+
+*Requires Python 3.9 or later for*
+:func:`get_type_hints(..., include_extras=False) <typing.get_type_hints>`.
+
+.. _v6.17.4:
+
+-------------------
+6.17.4 - 2021-08-31
+-------------------
+
+This patch makes unique :func:`~hypothesis.extra.numpy.arrays` much more
+efficient, especially when there are only a few valid elements - such as
+for eight-bit integers (:issue:`3066`).
+
+.. _v6.17.3:
+
+-------------------
+6.17.3 - 2021-08-30
+-------------------
+
+This patch fixes the repr of :func:`~hypothesis.extra.numpy.array_shapes`.
+
+.. _v6.17.2:
+
+-------------------
+6.17.2 - 2021-08-30
+-------------------
+
+This patch wraps some internal helper code in our proxies decorator to prevent
+mutations of method docstrings carrying over to other instances of the respective
+methods.
+
 .. _v6.17.1:
 
 -------------------
