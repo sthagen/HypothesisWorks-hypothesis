@@ -18,6 +18,36 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.20.0:
+
+-------------------
+6.20.0 - 2021-09-09
+-------------------
+
+This release allows :func:`~hypothesis.strategies.slices` to generate ``step=None``,
+and fixes an off-by-one error where the ``start`` index could be equal to ``size``.
+This works fine for all Python sequences and Numpy arrays, but is undefined behaviour
+in the `Array API standard <https://data-apis.org/>`__ (see :pull:`3065`).
+
+.. _v6.19.0:
+
+-------------------
+6.19.0 - 2021-09-08
+-------------------
+
+This release makes :doc:`stateful testing <stateful>` more likely to tell you
+if you do something unexpected and unsupported:
+
+- The :obj:`~hypothesis.HealthCheck.return_value` health check now applies to
+  :func:`~hypothesis.stateful.rule` and :func:`~hypothesis.stateful.initialize`
+  rules, if they don't have ``target`` bundles, as well as
+  :func:`~hypothesis.stateful.invariant`.
+- Using a :func:`~hypothesis.stateful.consumes` bundle as a ``target`` is
+  deprecated, and will be an error in a future version.
+
+If existing code triggers these new checks, check for related bugs and
+misunderstandings - these patterns *never* had any effect.
+
 .. _v6.18.0:
 
 -------------------
