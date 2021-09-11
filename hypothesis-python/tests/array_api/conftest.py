@@ -13,5 +13,20 @@
 #
 # END HEADER
 
-__version_info__ = (6, 21, 0)
-__version__ = ".".join(map(str, __version_info__))
+import pytest
+
+from tests.array_api.common import COMPLIANT_XP, MOCK_WARN_MSG
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "mockable_xp: mocked array module possibly used in test"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if not COMPLIANT_XP:
+        mark = pytest.mark.filterwarnings(f"ignore:.*{MOCK_WARN_MSG}.*")
+        for item in items:
+            if "mockable_xp" in item.keywords:
+                item.add_marker(mark)
