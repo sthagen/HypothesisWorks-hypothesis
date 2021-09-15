@@ -18,6 +18,24 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.21.3:
+
+-------------------
+6.21.3 - 2021-09-15
+-------------------
+
+This release improves Ghostwritten tests for builtins (:issue:`2977`).
+
+.. _v6.21.2:
+
+-------------------
+6.21.2 - 2021-09-15
+-------------------
+
+This release deprecates use of both ``min_dims > len(shape)`` and
+``max_dims > len(shape)`` when ``allow_newaxis == False`` in
+:func:`~hypothesis.extra.numpy.basic_indices` (:issue:`3091`).
+
 .. _v6.21.1:
 
 -------------------
