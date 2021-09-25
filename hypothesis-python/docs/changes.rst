@@ -18,6 +18,25 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.22.0:
+
+-------------------
+6.22.0 - 2021-09-24
+-------------------
+
+This release adds :class:`~hypothesis.extra.django.LiveServerTestCase` and
+:class:`~hypothesis.extra.django.StaticLiveServerTestCase` for django test.
+Thanks to Ivan Tham for this feature!
+
+.. _v6.21.6:
+
+-------------------
+6.21.6 - 2021-09-19
+-------------------
+
+This patch fixes some new linter warnings such as :pypi:`flake8-bugbear`'s
+``B904`` for explicit exception chaining, so tracebacks might be a bit nicer.
+
 .. _v6.21.5:
 
 -------------------
