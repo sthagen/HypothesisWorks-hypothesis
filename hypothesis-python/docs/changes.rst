@@ -18,6 +18,29 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.25.0:
+
+-------------------
+6.25.0 - 2021-11-19
+-------------------
+
+This release adds special filtering logic to make a few special cases
+like ``s.map(lambda x: x)`` and ``lists().filter(len)`` more efficient
+(:issue:`2701`).
+
+.. _v6.24.6:
+
+-------------------
+6.24.6 - 2021-11-18
+-------------------
+
+This patch makes :func:`hypothesis.strategies.floats` generate
+:wikipedia:`"subnormal" floating point numbers <Subnormal_number>`
+more often, as these rare values can have strange interactions with
+`unsafe compiler optimisations like -ffast-math
+<https://simonbyrne.github.io/notes/fastmath/#flushing_subnormals_to_zero>`__
+(:issue:`2976`).
+
 .. _v6.24.5:
 
 -------------------
