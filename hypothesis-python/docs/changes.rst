@@ -18,6 +18,31 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.27.0:
+
+-------------------
+6.27.0 - 2021-11-22
+-------------------
+
+This release teaches Hypothesis' multiple-error reporting to format tracebacks
+using :pypi:`pytest` or :pypi:`better-exceptions`, if they are installed and
+enabled (:issue:`3116`).
+
+.. _v6.26.0:
+
+-------------------
+6.26.0 - 2021-11-21
+-------------------
+
+Did you know that of the 2\ :superscript:`64` possible floating-point numbers,
+2\ :superscript:`53` of them are ``nan`` - and Python prints them all the same way?
+
+While nans *usually* have all zeros in the sign bit and mantissa, this
+`isn't always true <https://wingolog.org/archives/2011/05/18/value-representation-in-javascript-implementations>`__,
+and :wikipedia:`'signaling' nans might trap or error <https://en.wikipedia.org/wiki/NaN#Signaling_NaN>`.
+To help distinguish such errors in e.g. CI logs, Hypothesis now prints ``-nan`` for
+negative nans, and adds a comment like ``# Saw 3 signaling NaNs`` if applicable.
+
 .. _v6.25.0:
 
 -------------------
@@ -34,7 +59,7 @@ like ``s.map(lambda x: x)`` and ``lists().filter(len)`` more efficient
 6.24.6 - 2021-11-18
 -------------------
 
-This patch makes :func:`hypothesis.strategies.floats` generate
+This patch makes :func:`~hypothesis.strategies.floats` generate
 :wikipedia:`"subnormal" floating point numbers <Subnormal_number>`
 more often, as these rare values can have strange interactions with
 `unsafe compiler optimisations like -ffast-math
@@ -47,7 +72,7 @@ more often, as these rare values can have strange interactions with
 6.24.5 - 2021-11-16
 -------------------
 
-This patch fixes a rare internal error in the :func:`hypothesis.strategies.datetimes`
+This patch fixes a rare internal error in the :func:`~hypothesis.strategies.datetimes`
 strategy, where the implementation of ``allow_imaginary=False`` crashed when checking
 a time during the skipped hour of a DST transition *if* the DST offset is negative -
 only true of ``Europe/Dublin``, who we presume have their reasons - and the ``tzinfo``
