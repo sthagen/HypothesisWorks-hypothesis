@@ -18,6 +18,16 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.27.3:
+
+-------------------
+6.27.3 - 2021-11-28
+-------------------
+
+This release fixes :issue:`3080`, where :func:`~hypothesis.strategies.from_type`
+failed on unions containing :pep:`585` builtin generic types (like ``list[int]``)
+in Python 3.9 and later.
+
 .. _v6.27.2:
 
 -------------------
@@ -2249,7 +2259,7 @@ backport on PyPI.
 5.16.3 - 2020-06-21
 -------------------
 
-This patch precomputes some of the setup logic for our experimental
+This patch precomputes some of the setup logic for our
 :ref:`external fuzzer integration <fuzz_one_input>` and sets
 :obj:`deadline=None <hypothesis.settings.deadline>` in fuzzing mode,
 saving around 150us on each iteration.
@@ -3901,7 +3911,7 @@ some internal compatibility shims we use to support older Pythons.
 -------------------
 
 This release adds the :func:`hypothesis.target` function, which implements
-**experimental** support for :ref:`targeted property-based testing <targeted-search>`
+:ref:`targeted property-based testing <targeted-search>`
 (:issue:`1779`).
 
 By calling :func:`~hypothesis.target` in your test function, Hypothesis can
