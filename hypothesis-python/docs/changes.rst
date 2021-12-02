@@ -18,6 +18,35 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.29.3:
+
+-------------------
+6.29.3 - 2021-12-02
+-------------------
+
+This patch fixes a bug in :func:`~hypothesis.extra.numpy.mutually_broadcastable_shapes`,
+which restricted the patterns of singleton dimensions that could be generated for
+dimensions that extended beyond ``base_shape`` (:issue:`3170`).
+
+.. _v6.29.2:
+
+-------------------
+6.29.2 - 2021-12-02
+-------------------
+
+This patch clarifies our pretty-printing of DataFrames (:issue:`3114`).
+
+.. _v6.29.1:
+
+-------------------
+6.29.1 - 2021-12-02
+-------------------
+
+This patch documents :func:`~hypothesis.strategies.timezones`
+`Windows-only requirement <https://docs.python.org/3/library/zoneinfo.html#data-sources>`__
+for the :pypi:`tzdata` package, and ensures that
+``pip install hypothesis[zoneinfo]`` will install the latest version.
+
 .. _v6.29.0:
 
 -------------------

@@ -318,6 +318,13 @@ def update_vendored_files():
     if fname.read_bytes().splitlines()[1:] != new.splitlines()[1:]:
         fname.write_bytes(new)
 
+    # Always require the latest version of the tzdata package
+    tz_url = "https://pypi.org/pypi/tzdata/json"
+    tzdata_version = requests.get(tz_url).json()["info"]["version"]
+    setup = pathlib.Path(hp.BASE_DIR, "setup.py")
+    new = re.sub(r"tzdata>=(.+?) ", f"tzdata>={tzdata_version} ", setup.read_text())
+    setup.write_text(new)
+
 
 def has_diff(file_or_directory):
     diff = ["git", "diff", "--no-patch", "--exit-code", "--", file_or_directory]
@@ -442,6 +449,11 @@ def check_py310():
 
 
 @python_tests
+def check_py310_pyjion():
+    run_tox("py310-pyjion", PY310)
+
+
+@python_tests
 def check_pypy36():
     run_tox("pypy3-full", PYPY36)
 
@@ -465,7 +477,7 @@ standard_tox_task("pytest46")
 
 for n in [22, 31, 32]:
     standard_tox_task(f"django{n}")
-for n in [25, 100, 111]:
+for n in [25, 10, 11, 12, 13]:
     standard_tox_task(f"pandas{n}")
 
 standard_tox_task("coverage")
