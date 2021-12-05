@@ -18,6 +18,15 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.30.1:
+
+-------------------
+6.30.1 - 2021-12-05
+-------------------
+
+This patch updates our vendored `list of top-level domains <https://www.iana.org/domains/root/db>`__,
+which is used by the provisional :func:`~hypothesis.provisional.domains` strategy.
+
 .. _v6.30.0:
 
 -------------------
@@ -879,8 +888,8 @@ code.
 6.8.11 - 2021-04-11
 -------------------
 
-This patch improves an error message from :func:`~hypothesis.strategies.from_type`
-when :func:`~hypothesis.strategies.builds` would be more suitable (:issue:`2930`).
+This patch improves an error message from :func:`~hypothesis.strategies.builds`
+when :func:`~hypothesis.strategies.from_type` would be more suitable (:issue:`2930`).
 
 .. _v6.8.10:
 
