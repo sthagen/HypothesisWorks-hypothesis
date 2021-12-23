@@ -18,6 +18,23 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.32.1:
+
+-------------------
+6.32.1 - 2021-12-23
+-------------------
+
+This patch updates our autoformatting tools, improving our code style without any API changes.
+
+.. _v6.32.0:
+
+-------------------
+6.32.0 - 2021-12-23
+-------------------
+
+This release drops support for Python 3.6, which `reached end of life upstream
+<https://devguide.python.org/#status-of-python-branches>`__ on 2021-12-23.
+
 .. _v6.31.6:
 
 -------------------

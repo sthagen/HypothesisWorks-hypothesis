@@ -221,9 +221,9 @@ def _type_from_doc_fragment(token: str) -> Optional[type]:
         return int
     if "numpy" in sys.modules:
         if re.fullmatch(r"[Aa]rray[-_ ]?like", token):
-            return sys.modules["numpy"].ndarray  # type: ignore
+            return sys.modules["numpy"].ndarray
         elif token == "dtype":
-            return sys.modules["numpy"].dtype  # type: ignore
+            return sys.modules["numpy"].dtype
     # Natural-language syntax, e.g. "sequence of integers"
     coll_match = re.fullmatch(r"(\w+) of (\w+)", token)
     if coll_match is not None:
@@ -333,8 +333,7 @@ def _get_params(func: Callable) -> Dict[str, inspect.Parameter]:
             and isinstance(func.__doc__, str)
         ):
             # inspect.signature doesn't work on all builtin functions or methods.
-            # In such cases, including the operator module on Python 3.6, we can try
-            # to reconstruct simple signatures from the docstring.
+            # In such cases, we can try to reconstruct simple signatures from the docstring.
             match = re.match(rf"^{func.__name__}\((.+?)\)", func.__doc__)
             if match is None:
                 raise
@@ -461,9 +460,6 @@ def _imports_for_object(obj):
         name = _get_qualname(obj).split(".")[0]
         return {(_get_module(obj), name)}
     except Exception:
-        with contextlib.suppress(AttributeError):
-            if obj.__module__ == "typing":  # only on CPython 3.6
-                return {("typing", getattr(obj, "__name__", obj.name))}
         return set()
 
 
@@ -779,7 +775,7 @@ def magic(
             functions.add(thing)
         elif isinstance(thing, types.ModuleType):
             if hasattr(thing, "__all__"):
-                funcs = [getattr(thing, name, None) for name in thing.__all__]  # type: ignore
+                funcs = [getattr(thing, name, None) for name in thing.__all__]
             else:
                 pkg = thing.__package__
                 funcs = [
