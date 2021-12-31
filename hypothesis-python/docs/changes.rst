@@ -18,6 +18,26 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.34.1:
+
+-------------------
+6.34.1 - 2021-12-31
+-------------------
+
+This patch fixes :issue:`3169`, an extremely rare bug which would
+trigger if an internal least-recently-reused cache dropped a newly
+added entry immediately after it was added.
+
+.. _v6.34.0:
+
+-------------------
+6.34.0 - 2021-12-31
+-------------------
+
+This release fixes :issue:`3133` and :issue:`3144`, where attempting
+to generate Pandas series of lists or sets would fail with confusing
+errors if you did not specify ``dtype=object``.
+
 .. _v6.33.0:
 
 -------------------
