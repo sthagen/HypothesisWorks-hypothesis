@@ -18,6 +18,15 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.36.2:
+
+-------------------
+6.36.2 - 2022-02-13
+-------------------
+
+This patch updates our vendored `list of top-level domains <https://www.iana.org/domains/root/db>`__,
+which is used by the provisional :func:`~hypothesis.provisional.domains` strategy.
+
 .. _v6.36.1:
 
 -------------------
@@ -2895,7 +2904,7 @@ with a field literally named "model" (:issue:`2369`).
 
 This release adds an explicit warning for tests that are both decorated with
 :func:`@given(...) <hypothesis.given>` and request a
-:doc:`function-scoped pytest fixture <pytest:fixture>`, because such fixtures
+:doc:`function-scoped pytest fixture <pytest:how-to/fixtures>`, because such fixtures
 are only executed once for *all* Hypothesis test cases and that often causes
 trouble (:issue:`377`).
 
