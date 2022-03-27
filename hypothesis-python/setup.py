@@ -66,7 +66,7 @@ extras = {
     # zoneinfo is an odd one: every dependency is conditional, because they're
     # only necessary on old versions of Python or Windows systems.
     "zoneinfo": [
-        "tzdata>=2021.5 ; sys_platform == 'win32'",
+        "tzdata>=2022.1 ; sys_platform == 'win32'",
         "backports.zoneinfo>=0.2.1 ; python_version<'3.9'",
     ],
     # We only support Django versions with upstream support - see
@@ -96,7 +96,7 @@ setuptools.setup(
         "Documentation": "https://hypothesis.readthedocs.io",
         "Issues": "https://github.com/HypothesisWorks/hypothesis/issues",
     },
-    license="MPL v2",
+    license="MPL-2.0",
     description="A library for property-based testing",
     zip_safe=False,
     extras_require=extras,
