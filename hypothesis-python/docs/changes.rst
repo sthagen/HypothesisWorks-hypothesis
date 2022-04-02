@@ -18,6 +18,51 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.41.0:
+
+-------------------
+6.41.0 - 2022-04-01
+-------------------
+
+This release changes the implementation of :const:`~hypothesis.infer` to be an alias
+for :obj:`python:Ellipsis`. E.g. ``@given(a=infer)`` is now equivalent to ``@given(a=...)``. Furthermore, ``@given(...)`` can now be specified so that
+:func:`@given <hypothesis.given>` will infer the strategies for *all* arguments of the
+decorated function based on its annotations.
+
+.. _v6.40.3:
+
+-------------------
+6.40.3 - 2022-04-01
+-------------------
+
+This patch simplifies the repr of the strategies namespace returned in
+:func:`~hypothesis.extra.array_api.make_strategies_namespace`, e.g.
+
+.. code-block:: pycon
+
+    >>> from hypothesis.extra.array_api import make_strategies_namespace
+    >>> from numpy import array_api as xp
+    >>> xps = make_strategies_namespace(xp)
+    >>> xps
+    make_strategies_namespace(numpy.array_api)
+
+.. _v6.40.2:
+
+-------------------
+6.40.2 - 2022-04-01
+-------------------
+
+Fixed :func:`~hypothesis.strategies.from_type` support for
+:pep:`604` union types, like ``int | None`` (:issue:`3255`).
+
+.. _v6.40.1:
+
+-------------------
+6.40.1 - 2022-04-01
+-------------------
+
+Fixed an internal error when ``given()`` was passed a lambda.
+
 .. _v6.40.0:
 
 -------------------
