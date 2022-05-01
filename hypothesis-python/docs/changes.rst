@@ -18,6 +18,34 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.46.1:
+
+-------------------
+6.46.1 - 2022-05-01
+-------------------
+
+This patch fixes a rare bug where we could incorrectly treat
+:obj:`~python:inspect.Parameter.empty` as a type annotation,
+if the callable had an explicitly assigned ``__signature__``.
+
+.. _v6.46.0:
+
+-------------------
+6.46.0 - 2022-05-01
+-------------------
+
+This release adds an ``allow_nil`` argument to :func:`~hypothesis.strategies.uuids`,
+which you can use to... generate the nil UUID.  Thanks to Shlok Gandhi for the patch!
+
+.. _v6.45.4:
+
+-------------------
+6.45.4 - 2022-05-01
+-------------------
+
+This patch fixes some missing imports for certain :doc:`Ghostwritten <ghostwriter>`
+tests.  Thanks to Mel Seto for fixing :issue:`3316`.
+
 .. _v6.45.3:
 
 -------------------

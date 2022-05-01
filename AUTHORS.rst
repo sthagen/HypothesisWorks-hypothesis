@@ -102,6 +102,7 @@ their individual contributions.
 * `Matthew Barber <https://www.github.com/honno>`_ (quitesimplymatt@gmail.com)
 * `Max Nordlund <https://www.github.com/maxnordlund>`_ (max.nordlund@gmail.com)
 * `Maxim Kulkin <https://www.github.com/maximkulkin>`_ (maxim.kulkin@gmail.com)
+* `Mel Seto <https://github.com/mel-seto>`_
 * `Michel Alexandre Salim <https://github.com/michel-slm>`_ (michel@michel-slm.name)
 * `mulkieran <https://www.github.com/mulkieran>`_
 * `Munir Abdinur <https://www.github.com/mabdinur>`_
@@ -131,6 +132,7 @@ their individual contributions.
 * `Sangarshanan <https://www.github.com/sangarshanan>`_ (sangarshanan1998@gmail.com)
 * `Sanyam Khurana <https://github.com/CuriousLearner>`_
 * `Saul Shanabrook <https://www.github.com/saulshanabrook>`_ (s.shanabrook@gmail.com)
+* `Shlok Gandhi <https://github.com/shlok57>`_ (shlok.gandhi@gmail.com)
 * `Stuart Cook <https://www.github.com/Zalathar>`_
 * `SuperStormer <https://github.com/SuperStormer>`_
 * `Sushobhit <https://github.com/sushobhit27>`_ (sushobhitsolanki@gmail.com)
