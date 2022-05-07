@@ -54,6 +54,7 @@ their individual contributions.
 * `Florian Bruhin <https://www.github.com/The-Compiler>`_
 * `follower <https://www.github.com/follower>`_
 * `Gary Donovan <https://www.github.com/garyd203>`_
+* `Glenn Lehman <https://www.github.com/glnnlhmn>`_
 * `Graham Williamson <https://github.com/00willo>`_
 * `Grant David Bachman <https://github.com/grantbachman>`_ (grantbachman@gmail.com)
 * `Gregory Petrosyan <https://github.com/flyingmutant>`_
@@ -82,6 +83,7 @@ their individual contributions.
 * `Katelyn Gigante <https://github.com/silasary>`_
 * `Katrina Durance <https://github.com/kdurance>`_
 * `kbara <https://www.github.com/kbara>`_
+* Keeri Tramm
 * `Kristian Glass <https://www.github.com/doismellburning>`_
 * `Krzysztof Przybyła <https://github.com/kprzybyla>`_
 * `Kyle Reeve <https://www.github.com/kreeve>`_ (krzw92@gmail.com)
@@ -133,6 +135,7 @@ their individual contributions.
 * `Sanyam Khurana <https://github.com/CuriousLearner>`_
 * `Saul Shanabrook <https://www.github.com/saulshanabrook>`_ (s.shanabrook@gmail.com)
 * `Shlok Gandhi <https://github.com/shlok57>`_ (shlok.gandhi@gmail.com)
+* `Sogata Ray <https://github.com/rayardinanda>`_ (rayardinanda@gmail.com)
 * `Stuart Cook <https://www.github.com/Zalathar>`_
 * `SuperStormer <https://github.com/SuperStormer>`_
 * `Sushobhit <https://github.com/sushobhit27>`_ (sushobhitsolanki@gmail.com)
