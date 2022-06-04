@@ -18,6 +18,26 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.46.11:
+
+--------------------
+6.46.11 - 2022-06-02
+--------------------
+
+Mention :func:`hypothesis.strategies.timezones`
+in the documentation of :func:`hypothesis.strategies.datetimes` for completeness.
+
+Thanks to George Macon for this addition.
+
+.. _v6.46.10:
+
+--------------------
+6.46.10 - 2022-06-01
+--------------------
+
+This release contains some small improvements to our documentation.
+Thanks to Felix Divo for his contribution!
+
 .. _v6.46.9:
 
 -------------------
@@ -26,16 +46,6 @@ Hypothesis 6.x
 
 This patch by Adrian Garcia Badaracco adds type annotations
 to some private internals (:issue:`3074`).
-
-This patch by Phillip Schanely makes changes to the
-:func:`~hypothesis.strategies.floats` strategy when ``min_value`` or ``max_value`` is
-present.
-Hypothesis will now be capable of generating every representable value in the bounds.
-You may notice that hypothesis is more likely to test values near boundaries, and values
-that are very close to zero.
-
-These changes also support future integrations with symbolic execution tools and fuzzers
-(:issue:`3086`).
 
 .. _v6.46.8:
 
