@@ -18,6 +18,16 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.47.2:
+
+-------------------
+6.47.2 - 2022-06-12
+-------------------
+
+We now use the :pep:`654` `ExceptionGroup <https://docs.python.org/3.11/library/exceptions.html#ExceptionGroup>`__
+type - provided by the :pypi:`exceptiongroup` backport on older Pythons -
+to ensure that if multiple errors are raised in teardown, they will all propagate.
+
 .. _v6.47.1:
 
 -------------------
@@ -2627,7 +2637,7 @@ Thanks to Zac Hatfield-Dodds and Nikita Sobolev for this feature!
 
 This patch adds two new :doc:`ghostwriters <ghostwriter>` to test
 :wikipedia:`binary operations <Binary_operation>`, like :func:`python:operator.add`,
-and Numpy :doc:`ufuncs <reference/ufuncs>` and :doc:`gufuncs
+and Numpy :doc:`ufuncs <numpy:reference/ufuncs>` and :doc:`gufuncs
 <numpy:reference/c-api/generalized-ufuncs>` like :data:`np.matmul() <numpy:numpy.matmul>`.
 
 .. _v5.26.1:
