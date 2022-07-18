@@ -44,6 +44,7 @@ from uuid import UUID
 
 import attr
 
+from hypothesis._settings import note_deprecation
 from hypothesis.control import cleanup, note
 from hypothesis.errors import InvalidArgument, ResolutionFailed
 from hypothesis.internal.cathetus import cathetus
@@ -59,6 +60,7 @@ from hypothesis.internal.reflection import (
     define_function_signature,
     get_pretty_function_description,
     get_signature,
+    is_first_param_referenced_in_function,
     nicerepr,
     required_args,
 )
@@ -1531,6 +1533,13 @@ def _composite(f):
         )
     if params[0].default is not sig.empty:
         raise InvalidArgument("A default value for initial argument will never be used")
+    if not is_first_param_referenced_in_function(f):
+        note_deprecation(
+            "There is no reason to use @st.composite on a function which "
+            + "does not call the provided draw() function internally.",
+            since="2022-07-17",
+            has_codemod=False,
+        )
     if params[0].kind.name != "VAR_POSITIONAL":
         params = params[1:]
     newsig = sig.replace(
@@ -1595,6 +1604,7 @@ def complex_numbers(
     max_magnitude: Optional[Real] = None,
     allow_infinity: Optional[bool] = None,
     allow_nan: Optional[bool] = None,
+    allow_subnormal: bool = True,
 ) -> SearchStrategy[complex]:
     """Returns a strategy that generates complex numbers.
 
@@ -1606,6 +1616,9 @@ def complex_numbers(
     If ``min_magnitude`` is nonzero or ``max_magnitude`` is finite, it
     is an error to enable ``allow_nan``.  If ``max_magnitude`` is finite,
     it is an error to enable ``allow_infinity``.
+
+    ``allow_subnormal`` is applied to each part of the complex number
+    separately, as for :func:`~hypothesis.strategies.floats`.
 
     The magnitude constraints are respected up to a relative error
     of (around) floating-point epsilon, due to implementation via
@@ -1639,13 +1652,22 @@ def complex_numbers(
             f"Cannot have allow_nan={allow_nan!r}, min_magnitude={min_magnitude!r} "
             f"max_magnitude={max_magnitude!r}"
         )
-    allow_kw = {"allow_nan": allow_nan, "allow_infinity": allow_infinity}
+
+    check_type(bool, allow_subnormal, "allow_subnormal")
+    allow_kw = {
+        "allow_nan": allow_nan,
+        "allow_infinity": allow_infinity,
+        # If we have a nonzero normal min_magnitude and draw a zero imaginary part,
+        # then allow_subnormal=True would be an error with the min_value to the floats()
+        # strategy for the real part.  We therefore replace True with None.
+        "allow_subnormal": None if allow_subnormal else allow_subnormal,
+    }
 
     if min_magnitude == 0 and max_magnitude is None:
         # In this simple but common case, there are no constraints on the
         # magnitude and therefore no relationship between the real and
         # imaginary parts.
-        return builds(complex, floats(**allow_kw), floats(**allow_kw))
+        return builds(complex, floats(**allow_kw), floats(**allow_kw))  # type: ignore
 
     @composite
     def constrained_complex(draw):

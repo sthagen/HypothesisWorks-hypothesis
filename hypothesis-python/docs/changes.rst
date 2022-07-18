@@ -18,6 +18,41 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.52.1:
+
+-------------------
+6.52.1 - 2022-07-18
+-------------------
+
+This patch adds filter rewriting for :func:`math.isfinite`, :func:`math.isinf`, and :func:`math.isnan`
+on :func:`~hypothesis.strategies.integers` or :func:`~hypothesis.strategies.floats` (:issue:`2701`).
+
+Thanks to Sam Clamons at the SciPy Sprints!
+
+.. _v6.52.0:
+
+-------------------
+6.52.0 - 2022-07-18
+-------------------
+
+This release adds the ``allow_subnormal`` argument to :func:`~hypothesis.strategies.complex_numbers` by
+applying it to each of the real and imaginary parts separately. Closes :issue:`3390`.
+
+Thanks to Evan Tey for this fix.
+
+.. _v6.51.0:
+
+-------------------
+6.51.0 - 2022-07-17
+-------------------
+
+Issue a deprecation warning if a function decorated with
+:func:`@composite <hypothesis.strategies.composite>`
+does not draw any values (:issue:`3384`).
+
+Thanks to Grzegorz Zieba, Rodrigo Girão, and Thomas Ball for
+working on this at the EuroPython sprints!
+
 .. _v6.50.1:
 
 -------------------
