@@ -18,6 +18,26 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.56.1:
+
+-------------------
+6.56.1 - 2022-10-05
+-------------------
+
+This patch improves the error message when Hypothesis detects "flush to zero"
+mode for floating-point: we now report which package(s) enabled this, which
+can make debugging much easier.  See :issue:`3458` for details.
+
+.. _v6.56.0:
+
+-------------------
+6.56.0 - 2022-10-02
+-------------------
+
+This release defines ``__bool__()`` on :class:`~hypothesis.strategies.SearchStrategy`.
+It always returns ``True``, like before, but also emits a warning to help with
+cases where you intended to draw a value (:issue:`3463`).
+
 .. _v6.55.0:
 
 -------------------
