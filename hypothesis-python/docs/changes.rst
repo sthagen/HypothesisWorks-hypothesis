@@ -18,6 +18,51 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.58.1:
+
+-------------------
+6.58.1 - 2022-11-26
+-------------------
+
+This patch shifts ``hypothesis[lark]`` from depending on the old :pypi:`lark-parser`
+package to the new :pypi:`lark` package.  There are no code changes in Hypothesis,
+it's just that Lark got a new name on PyPI for version 1.0 onwards.
+
+.. _v6.58.0:
+
+-------------------
+6.58.0 - 2022-11-19
+-------------------
+
+:func:`~hypothesis.register_random` has used :mod:`weakref` since :ref:`v6.27.1`,
+allowing the :class:`~random.Random`-compatible objects to be garbage-collected when
+there are no other references remaining in order to avoid memory leaks.
+We now raise an error or emit a warning when this seems likely to happen immediately.
+
+The type annotation of :func:`~hypothesis.register_random` was also widened so that
+structural subtypes of :class:`~random.Random` are accepted by static typecheckers.
+
+.. _v6.57.1:
+
+-------------------
+6.57.1 - 2022-11-14
+-------------------
+
+This patch updates some internal type annotations and fixes a formatting bug in the
+:obj:`~hypothesis.Phase.explain` phase reporting.
+
+.. _v6.57.0:
+
+-------------------
+6.57.0 - 2022-11-14
+-------------------
+
+Hypothesis now raises an error if you passed a strategy as the ``alphabet=``
+argument to :func:`~hypothesis.strategies.text`, and it generated something
+which was not a length-one string.  This has never been supported, we're just
+adding explicit validation to catch cases like `this StackOverflow question
+<https://stackoverflow.com/a/74336909/9297601>`__.
+
 .. _v6.56.4:
 
 -------------------
@@ -1160,7 +1205,7 @@ This patch makes the :command:`hypothesis codemod`
 -------------------
 
 This patch changes the backing datastructures of :func:`~hypothesis.register_random`
-and a few internal caches to use :class:`weakref.WeakKeyDictionary`.  This reduces
+and a few internal caches to use :class:`weakref.WeakValueDictionary`.  This reduces
 memory usage and may improve performance when registered :class:`~random.Random`
 instances are only used for a subset of your tests (:issue:`3131`).
 
