@@ -113,11 +113,11 @@ from hypothesis.strategies._internal.strategies import (
 from hypothesis.vendor.pretty import RepresentationPrinter
 from hypothesis.version import __version__
 
-if sys.version_info >= (3, 10):  # pragma: no cover
+if sys.version_info >= (3, 10):
     from types import EllipsisType as EllipsisType
 elif TYPE_CHECKING:
     from builtins import ellipsis as EllipsisType
-else:
+else:  # pragma: no cover
     EllipsisType = type(Ellipsis)
 
 
@@ -136,25 +136,80 @@ class Example:
     kwargs = attr.ib()
 
 
-def example(*args: Any, **kwargs: Any) -> Callable[[TestFunc], TestFunc]:
+class example:
     """A decorator which ensures a specific example is always tested."""
-    if args and kwargs:
-        raise InvalidArgument(
-            "Cannot mix positional and keyword arguments for examples"
-        )
-    if not (args or kwargs):
-        raise InvalidArgument("An example must provide at least one argument")
 
-    hypothesis_explicit_examples: List[Example] = []
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if args and kwargs:
+            raise InvalidArgument(
+                "Cannot mix positional and keyword arguments for examples"
+            )
+        if not (args or kwargs):
+            raise InvalidArgument("An example must provide at least one argument")
 
-    def accept(test):
+        self.hypothesis_explicit_examples: List[Example] = []
+        self._this_example = Example(tuple(args), kwargs)
+
+    def __call__(self, test: TestFunc) -> TestFunc:
         if not hasattr(test, "hypothesis_explicit_examples"):
-            test.hypothesis_explicit_examples = hypothesis_explicit_examples
-        test.hypothesis_explicit_examples.append(Example(tuple(args), kwargs))
+            test.hypothesis_explicit_examples = self.hypothesis_explicit_examples  # type: ignore
+        test.hypothesis_explicit_examples.append(self._this_example)  # type: ignore
         return test
 
-    accept.hypothesis_explicit_examples = hypothesis_explicit_examples  # type: ignore
-    return accept
+    def via(self, *whence: str) -> "example":
+        """Attach a machine-readable label noting whence this example came.
+
+        The idea is that tools will be able to add ``@example()`` cases for you, e.g.
+        to maintain a high-coverage set of explicit examples, but also *remove* them
+        if they become redundant - without ever deleting manually-added examples:
+
+        .. code-block:: python
+
+            # You can choose to annotate examples, or not, as you prefer
+            @example(...)
+            @example(...).via("regression test for issue #42")
+
+            # The `hy-` prefix is reserved for automated tooling
+            @example(...).via("hy-failing")
+            @example(...).via("hy-coverage")
+            @example(...).via("hy-target-$label")
+            def test(x):
+                pass
+
+        Note that this "method chaining" syntax requires Python 3.9 or later, for
+        :pep:`614` relaxing grammar restrictions on decorators.  If you need to
+        support older versions of Python, you can use an identity function:
+
+        .. code-block:: python
+
+            def identity(x):
+                return x
+
+
+            @identity(example(...).via("label"))
+            def test(x):
+                pass
+
+        """
+        if len(whence) != 1 or not isinstance(whence[0], str):
+            raise InvalidArgument(".via() must be passed a string")
+        # This is deliberately a no-op at runtime; the tools operate on source code.
+        return self
+
+    if sys.version_info[:2] >= (3, 8):  # pragma: no branch
+        # We want a positional-only argument, and on Python 3.8+ we'll get it.
+        __sig = get_signature(via)
+        via = define_function_signature(
+            name=via.__name__,
+            docstring=via.__doc__,
+            signature=__sig.replace(
+                parameters=[
+                    p.replace(kind=inspect.Parameter.POSITIONAL_ONLY)
+                    for p in __sig.parameters.values()
+                ]
+            ),
+        )(via)
+        del __sig
 
 
 def seed(seed: Hashable) -> Callable[[TestFunc], TestFunc]:
@@ -888,7 +943,9 @@ class StateForActualGivenExecution:
                 errors_to_report.append(
                     (fragments, e.with_traceback(get_trimmed_traceback()))
                 )
-
+            else:
+                # execute_once() will always raise either the expected error, or Flaky.
+                raise NotImplementedError("This should be unreachable")
             finally:
                 # Whether or not replay actually raised the exception again, we want
                 # to print the reproduce_failure decorator for the failing example.
@@ -901,7 +958,8 @@ class StateForActualGivenExecution:
                 # Mostly useful for ``find`` and ensuring that objects that
                 # hold on to a reference to ``data`` know that it's now been
                 # finished and they can't draw more data from it.
-                ran_example.freeze()
+                ran_example.freeze()  # pragma: no branch
+                # No branch is possible here because we never have an active exception.
         _raise_to_user(errors_to_report, self.settings, report_lines)
 
 
