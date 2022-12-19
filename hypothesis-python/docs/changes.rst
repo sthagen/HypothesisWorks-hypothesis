@@ -18,6 +18,27 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.61.0:
+
+-------------------
+6.61.0 - 2022-12-11
+-------------------
+
+This release improves our treatment of database keys, which based on (among other things)
+the source code of your test function.  We now post-process this source to ignore
+decorators, comments, trailing whitespace, and blank lines - so that you can add
+:obj:`@example() <hypothesis.example>`\ s or make some small no-op edits to your code
+without preventing replay of any known failing or covering examples.
+
+.. _v6.60.1:
+
+-------------------
+6.60.1 - 2022-12-11
+-------------------
+
+This patch updates our vendored `list of top-level domains <https://www.iana.org/domains/root/db>`__,
+which is used by the provisional :func:`~hypothesis.provisional.domains` strategy.
+
 .. _v6.60.0:
 
 -------------------
