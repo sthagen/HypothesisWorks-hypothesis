@@ -18,6 +18,40 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.61.3:
+
+-------------------
+6.61.3 - 2023-01-08
+-------------------
+
+This patch teaches our enhanced :func:`~typing.get_type_hints` function to
+'see through' :obj:`~functools.partial` application, allowing inference
+from type hints to work in a few more cases which aren't (yet!) supported
+by the standard-library version.
+
+.. _v6.61.2:
+
+-------------------
+6.61.2 - 2023-01-07
+-------------------
+
+This patch improves our pretty-printing of failing examples, including
+some refactoring to prepare for exciting future features.
+
+.. _v6.61.1:
+
+-------------------
+6.61.1 - 2023-01-06
+-------------------
+
+This patch brings our :func:`~hypothesis.provisional.domains` and
+:func:`~hypothesis.strategies.emails` strategies into compliance with
+:rfc:`RFC 5890 §2.3.1 <5890>`: we no longer generate parts-of-domains
+where the third and fourth characters are ``--`` ("R-LDH labels"),
+though future versions *may* deliberately generate ``xn--`` punycode
+labels.  Thanks to :pypi:`python-email-validator` for `the report
+<https://github.com/JoshData/python-email-validator/issues/92>`__!
+
 .. _v6.61.0:
 
 -------------------
