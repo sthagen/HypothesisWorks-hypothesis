@@ -21,10 +21,15 @@ import operator
 import pathlib
 import re
 import sys
-from typing import Sequence
+from typing import Optional, Sequence, Union
 
 import numpy
 import pytest
+from example_code.future_annotations import (
+    add_custom_classes,
+    invalid_types,
+    merge_dicts,
+)
 
 import hypothesis
 from hypothesis.extra import ghostwriter
@@ -82,18 +87,64 @@ def divide(a: int, b: int) -> float:
     return a / b
 
 
+def optional_parameter(a: float, b: Optional[float]) -> float:
+    return optional_union_parameter(a, b)
+
+
+def optional_union_parameter(a: float, b: Optional[Union[float, int]]) -> float:
+    return a if b is None else a + b
+
+
+if sys.version_info[:2] >= (3, 10):
+
+    def union_sequence_parameter(items: Sequence[float | int]) -> float:
+        return sum(items)
+
+else:
+
+    def union_sequence_parameter(items: Sequence[Union[float, int]]) -> float:
+        return sum(items)
+
+
 # Note: for some of the `expected` outputs, we replace away some small
 #       parts which vary between minor versions of Python.
 @pytest.mark.parametrize(
     "data",
     [
         ("fuzz_sorted", ghostwriter.fuzz(sorted)),
+        ("fuzz_sorted_with_annotations", ghostwriter.fuzz(sorted, annotate=True)),
         ("fuzz_with_docstring", ghostwriter.fuzz(with_docstring)),
         ("fuzz_classmethod", ghostwriter.fuzz(A_Class.a_classmethod)),
         ("fuzz_staticmethod", ghostwriter.fuzz(A_Class.a_staticmethod)),
         ("fuzz_ufunc", ghostwriter.fuzz(numpy.add)),
         ("magic_gufunc", ghostwriter.magic(numpy.matmul)),
+        pytest.param(
+            ("optional_parameter", ghostwriter.magic(optional_parameter)),
+            marks=pytest.mark.skipif("sys.version_info[:2] < (3, 9)"),
+        ),
+        pytest.param(
+            ("optional_parameter_pre_py_3_9", ghostwriter.magic(optional_parameter)),
+            marks=pytest.mark.skipif("sys.version_info[:2] >= (3, 9)"),
+        ),
+        ("optional_union_parameter", ghostwriter.magic(optional_union_parameter)),
+        ("union_sequence_parameter", ghostwriter.magic(union_sequence_parameter)),
+        pytest.param(
+            ("add_custom_classes", ghostwriter.magic(add_custom_classes)),
+            marks=pytest.mark.skipif("sys.version_info[:2] < (3, 10)"),
+        ),
+        pytest.param(
+            ("merge_dicts", ghostwriter.magic(merge_dicts)),
+            marks=pytest.mark.skipif("sys.version_info[:2] < (3, 10)"),
+        ),
+        pytest.param(
+            ("invalid_types", ghostwriter.magic(invalid_types)),
+            marks=pytest.mark.skipif("sys.version_info[:2] < (3, 10)"),
+        ),
         ("magic_base64_roundtrip", ghostwriter.magic(base64.b64encode)),
+        (
+            "magic_base64_roundtrip_with_annotations",
+            ghostwriter.magic(base64.b64encode, annotate=True),
+        ),
         ("re_compile", ghostwriter.fuzz(re.compile)),
         (
             "re_compile_except",
@@ -114,6 +165,10 @@ def divide(a: int, b: int) -> float:
         ),
         ("eval_equivalent", ghostwriter.equivalent(eval, ast.literal_eval)),
         ("sorted_self_equivalent", ghostwriter.equivalent(sorted, sorted, sorted)),
+        (
+            "sorted_self_equivalent_with_annotations",
+            ghostwriter.equivalent(sorted, sorted, sorted, annotate=True),
+        ),
         ("addition_op_magic", ghostwriter.magic(add)),
         ("addition_op_multimagic", ghostwriter.magic(add, operator.add, numpy.add)),
         ("division_fuzz_error_handler", ghostwriter.fuzz(divide)),
@@ -124,6 +179,10 @@ def divide(a: int, b: int) -> float:
         (
             "division_roundtrip_error_handler",
             ghostwriter.roundtrip(divide, operator.mul),
+        ),
+        (
+            "division_roundtrip_error_handler_without_annotations",
+            ghostwriter.roundtrip(divide, operator.mul, annotate=False),
         ),
         (
             "division_roundtrip_arithmeticerror_handler",
@@ -137,6 +196,12 @@ def divide(a: int, b: int) -> float:
             "division_operator",
             ghostwriter.binary_operation(
                 operator.truediv, associative=False, commutative=False
+            ),
+        ),
+        (
+            "division_operator_with_annotations",
+            ghostwriter.binary_operation(
+                operator.truediv, associative=False, commutative=False, annotate=True
             ),
         ),
         (
