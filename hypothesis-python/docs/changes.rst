@@ -18,6 +18,42 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.68.0:
+
+-------------------
+6.68.0 - 2023-02-09
+-------------------
+
+This release adds support for the Array API's `2022.12 release
+<https://data-apis.org/array-api/2022.12/>`_ via the ``api_version`` argument in
+:func:`~hypothesis.extra.array_api.make_strategies_namespace`. Concretely this
+involves complex support in its existing strategies, plus an introduced
+:func:`xps.complex_dtypes` strategy.
+
+Additionally this release now treats :ref:`hypothesis.extra.array_api
+<array-api>` as stable, meaning breaking changes should only happen with major
+releases of Hypothesis.
+
+.. _v6.67.1:
+
+-------------------
+6.67.1 - 2023-02-05
+-------------------
+
+This patch updates our autoformatting tools, improving our code style without any API changes.
+
+.. _v6.67.0:
+
+-------------------
+6.67.0 - 2023-02-05
+-------------------
+
+This release allows for more precise generation of complex numbers using
+:func:`~hypothesis.extra.numpy.from_dtype`, by supporting the ``width``,
+``min_magnitude``, and ``min_magnitude`` arguments (:issue:`3468`).
+
+Thanks to Felix Divo for this feature!
+
 .. _v6.66.2:
 
 -------------------
