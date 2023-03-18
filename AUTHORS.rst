@@ -79,6 +79,7 @@ their individual contributions.
 * `James Lamb <https://github.com/jameslamb>`_
 * `Jenny Rouleau <https://github.com/jennyrou>`_
 * `Jens Heinrich <https://github.com/JensHeinrich>`_
+* `Jens Tröger <https://github.com/jenstroeger>`_
 * `Jeremy Thurgood <https://github.com/jerith>`_
 * `J.J. Green <http://soliton.vm.bytemark.co.uk/pub/jjg/>`_
 * `JP Viljoen <https://github.com/froztbyte>`_ (froztbyte@froztbyte.net)
@@ -135,6 +136,7 @@ their individual contributions.
 * `Phillip Schanely <https://github.com/pschanely>`_ (pschanely@gmail.com)
 * `Pierre-Jean Campigotto <https://github.com/PJCampi>`_
 * `Przemek Konopko <https://github.com/soutys>`_
+* `Reagan Lee <https://github.com/reaganjlee>`_
 * `Richard Boulton <https://www.github.com/rboulton>`_ (richard@tartarus.org)
 * `Richard Scholtens <https://github.com/richardscholtens>`_ (richardscholtens2@gmail.com)
 * `Robert Howlett <https://github.com/jebob>`_
