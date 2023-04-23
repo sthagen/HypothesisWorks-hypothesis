@@ -18,6 +18,23 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.72.1:
+
+-------------------
+6.72.1 - 2023-04-19
+-------------------
+
+This patch fixes some documentation and prepares for future features.
+
+.. _v6.72.0:
+
+-------------------
+6.72.0 - 2023-04-16
+-------------------
+
+This release deprecates ``Healthcheck.all()``, and :ref:`adds a codemod <codemods>`
+to automatically replace it with ``list(Healthcheck)`` (:issue:`3596`).
+
 .. _v6.71.0:
 
 -------------------
@@ -9742,7 +9759,7 @@ minor warts ranging from indirect imports to typos in comments.
 3.38.0 - 2017-11-18
 -------------------
 
-This release overhauls :doc:`the health check system <healthchecks>`
+This release overhauls :ref:`the health check system <healthchecks>`
 in a variety of small ways.
 It adds no new features, but is nevertheless a minor release because it changes
 which tests are likely to fail health checks.
