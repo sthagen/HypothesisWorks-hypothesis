@@ -18,6 +18,94 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.74.1:
+
+-------------------
+6.74.1 - 2023-04-28
+-------------------
+
+This patch provides better error messages for datetime- and timedelta-related
+invalid dtypes in our Pandas extra (:issue:`3518`).
+Thanks to Nick Muoh at the PyCon Sprints!
+
+.. _v6.74.0:
+
+-------------------
+6.74.0 - 2023-04-26
+-------------------
+
+This release adds support for `nullable pandas dtypes <https://pandas.pydata.org/docs/user_guide/integer_na.html>`__
+in :func:`~hypothesis.extra.pandas` (:issue:`3604`).
+Thanks to Cheuk Ting Ho for implementing this at the PyCon sprints!
+
+.. _v6.73.1:
+
+-------------------
+6.73.1 - 2023-04-27
+-------------------
+
+This patch updates our minimum Numpy version to 1.16, and restores compatibility
+with versions before 1.20, which were broken by a mistake in Hypothesis 6.72.4
+(:issue:`3625`).
+
+.. _v6.73.0:
+
+-------------------
+6.73.0 - 2023-04-25
+-------------------
+
+This release upgrades the :ref:`explain phase <phases>` (:issue:`3411`).
+
+* Following the first failure, Hypothesis will (:ref:`usually <phases>`) track which
+  lines of code were executed by passing and failing examples, and report where they
+  diverged - with some heuristics to drop unhelpful reports.  This is an existing
+  feature, now upgraded and newly enabled by default.
+
+* After shrinking to a minimal failing example, Hypothesis will try to find parts of
+  the example -- e.g. separate args to :func:`@given() <hypothesis.given>` -- which
+  can vary freely without changing the result of that minimal failing example.
+  If the automated experiments run without finding a passing variation, we leave a
+  comment in the final report:
+
+  .. code-block:: python
+
+      test_x_divided_by_y(
+          x=0,  # or any other generated value
+          y=0,
+      )
+
+Just remember that the *lack* of an explanation sometimes just means that Hypothesis
+couldn't efficiently find one, not that no explanation (or simpler failing example)
+exists.
+
+.. _v6.72.4:
+
+-------------------
+6.72.4 - 2023-04-25
+-------------------
+
+This patch fixes type annotations for the :func:`~hypothesis.extra.numpy.arrays`
+strategy.  Thanks to Francesc Elies for :pull:`3602`.
+
+.. _v6.72.3:
+
+-------------------
+6.72.3 - 2023-04-25
+-------------------
+
+This patch fixes a bug with :func:`~hypothesis.strategies.from_type()` with ``dict[tuple[int, int], str]``
+(:issue:`3527`).
+
+    Thanks to Nick Muoh at the PyCon Sprints!
+
+.. _v6.72.2:
+
+-------------------
+6.72.2 - 2023-04-24
+-------------------
+
+This patch refactors our internals to facilitate an upcoming feature.
+
 .. _v6.72.1:
 
 -------------------
