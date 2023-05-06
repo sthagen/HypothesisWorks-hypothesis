@@ -18,6 +18,41 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.75.2:
+
+-------------------
+6.75.2 - 2023-05-04
+-------------------
+
+Improved the documentation regarding how to use :class:`~hypothesis.database.GitHubArtifactDatabase`
+and fixed a bug that occurred in repositories with no existing artifacts.
+
+Thanks to Agustín Covarrubias for this contribution.
+
+.. _v6.75.1:
+
+-------------------
+6.75.1 - 2023-04-30
+-------------------
+
+``hypothesis.errors`` will now raise :py:exc:`AttributeError` when attempting
+to access an undefined attribute, rather than returning :py:obj:`None`.
+
+.. _v6.75.0:
+
+-------------------
+6.75.0 - 2023-04-30
+-------------------
+
+Sick of adding :obj:`@example() <hypothesis.example>`\ s by hand?
+Our Pytest plugin now writes ``.patch`` files to insert them for you, making
+`this workflow <https://blog.nelhage.com/post/property-testing-like-afl/>`__
+easier than ever before.
+
+Note that you'll need :pypi:`LibCST` (via :ref:`codemods`), and that
+:obj:`@example().via() <hypothesis.example.via>` requires :pep:`614`
+(Python 3.9 or later).
+
 .. _v6.74.1:
 
 -------------------
@@ -9216,8 +9251,8 @@ This changes only the formatting of our docstrings and should have no user-visib
 what arguments are valid, and additional validation logic to raise a
 clear error early (instead of e.g. silently ignoring a bad argument).
 Categories may be specified as the Unicode 'general category'
-(eg ``u'Nd'``), or as the 'major category' (eg ``[u'N', u'Lu']``
-is equivalent to ``[u'Nd', u'Nl', u'No', u'Lu']``).
+(eg ``'Nd'``), or as the 'major category' (eg ``['N', 'Lu']``
+is equivalent to ``['Nd', 'Nl', 'No', 'Lu']``).
 
 In previous versions, general categories were supported and all other
 input was silently ignored.  Now, major categories are supported in
