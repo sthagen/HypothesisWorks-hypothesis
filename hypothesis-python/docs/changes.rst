@@ -18,6 +18,25 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.75.5:
+
+-------------------
+6.75.5 - 2023-05-26
+-------------------
+
+This patch updates our linter stack to use :pypi:`ruff`, and fixes some
+previously-ignored lints.  Thanks to Christian Clauss for his careful
+review and :pull:`3651`!
+
+.. _v6.75.4:
+
+-------------------
+6.75.4 - 2023-05-26
+-------------------
+
+Hypothesis will now record an event for more cases where data is marked
+invalid, including for exceeding the internal depth limit.
+
 .. _v6.75.3:
 
 -------------------
