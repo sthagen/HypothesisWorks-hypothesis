@@ -18,6 +18,54 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.75.9:
+
+-------------------
+6.75.9 - 2023-05-31
+-------------------
+
+:func:`~hypothesis.strategies.from_type` now works in cases where we use
+:func:`~hypothesis.strategies.builds` to create an instance and the constructor
+has an argument which would lead to recursion.  Previously, this would raise
+an error if the argument had a default value.
+
+Thanks to Joachim B Haga for reporting and fixing this problem.
+
+.. _v6.75.8:
+
+-------------------
+6.75.8 - 2023-05-31
+-------------------
+
+In preparation for supporting JAX in :ref:`hypothesis.extra.array_api <array-api>`,
+this release supports immutable arrays being generated via :func:`xps.arrays`.
+In particular, we internally removed an instance of in-place array modification,
+which isn't possible for an immutable array.
+
+.. _v6.75.7:
+
+-------------------
+6.75.7 - 2023-05-30
+-------------------
+
+This release fixes some ``.patch``-file bugs from :ref:`version 6.75 <v6.75.0>`,
+and adds automatic support for writing ``@hypothesis.example()`` or ``@example()``
+depending on the current style in your test file - defaulting to the latter.
+
+Note that this feature requires :pypi:`libcst` to be installed, and :pypi:`black`
+is strongly recommended.  You can ensure you have the dependencies with
+``pip install "hypothesis[cli,codemods]"``.
+
+.. _v6.75.6:
+
+-------------------
+6.75.6 - 2023-05-27
+-------------------
+
+This patch continues the work started in :pull:`3651` by adding
+:pypi:`ruff` linter rules for pyflakes, flake8-comprehensions, and
+flake8-implicit-str-concat.
+
 .. _v6.75.5:
 
 -------------------

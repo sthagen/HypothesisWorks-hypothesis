@@ -8,5 +8,16 @@
 # v. 2.0. If a copy of the MPL was not distributed with this file, You can
 # obtain one at https://mozilla.org/MPL/2.0/.
 
-__version_info__ = (6, 75, 9)
-__version__ = ".".join(map(str, __version_info__))
+"""A stable file for which we can write patches.  Don't move stuff around!"""
+
+from pathlib import Path
+
+import hypothesis
+import hypothesis.strategies as st
+
+WHERE_TOP = Path(__file__).relative_to(Path.cwd())
+
+
+@hypothesis.given(st.integers())
+def fn_top(x):
+    """A trivial test function."""

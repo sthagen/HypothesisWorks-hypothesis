@@ -13,7 +13,7 @@ import pathlib
 import re
 import subprocess
 import sys
-from glob import glob
+from pathlib import Path
 
 import requests
 from coverage.config import CoverageConfig
@@ -207,6 +207,7 @@ def format():
             o.write("\n")
 
     codespell("--write-changes", *files_to_format, *doc_files_to_format)
+    pip_tool("ruff", "--fix-only", "."),
     pip_tool("shed", *files_to_format, *doc_files_to_format)
 
 
@@ -241,23 +242,29 @@ def compile_requirements(upgrade=False):
     else:
         extra = []
 
-    for f in glob(os.path.join("requirements", "*.in")):
-        base, _ = os.path.splitext(f)
+    for f in Path("requirements").glob("*.in"):
+        out_file = f.with_suffix(".txt")
         pip_tool(
             "pip-compile",
             "--allow-unsafe",  # future default, not actually unsafe
             "--resolver=backtracking",  # new pip resolver, default in pip-compile 7+
             *extra,
-            f,
+            str(f),
             "hypothesis-python/setup.py",
             "--output-file",
-            base + ".txt",
+            str(out_file),
             cwd=tools.ROOT,
             env={
                 "CUSTOM_COMPILE_COMMAND": "./build.sh upgrade-requirements",
                 **os.environ,
             },
         )
+        # Check that we haven't added anything to output files without adding to inputs
+        out_pkgs = out_file.read_text()
+        for p in f.read_text().splitlines():
+            p = p.lower().replace("_", "-")
+            if re.fullmatch(r"[a-z-]+", p):
+                assert p + "==" in out_pkgs, f"Package `{p}` deleted from {out_file}"
 
 
 def update_python_versions():
@@ -379,6 +386,7 @@ PYTHONS = {
     "3.10": "3.10.11",
     "3.11": "3.11.3",
     "3.12": "3.12-dev",
+    "3.13": "3.13-dev",
     "pypy3.7": "pypy3.7-7.3.9",
     "pypy3.8": "pypy3.8-7.3.11",
     "pypy3.9": "pypy3.9-7.3.11",
