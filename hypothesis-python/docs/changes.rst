@@ -18,6 +18,28 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.77.0:
+
+-------------------
+6.77.0 - 2023-06-09
+-------------------
+
+:func:`~hypothesis.strategies.from_type` now handles numpy array types:
+:obj:`np.typing.ArrayLike <numpy.typing.ArrayLike>`,
+:obj:`np.typing.NDArray <numpy.typing.NDArray>`, and parameterized
+versions including :class:`np.ndarray[shape, elem_type] <numpy.ndarray>`.
+
+.. _v6.76.0:
+
+-------------------
+6.76.0 - 2023-06-04
+-------------------
+
+Warn in :func:`~hypothesis.strategies.from_type` if the inferred strategy
+has no variation (always returning default instances). Also handles numpy
+data types by calling :func:`~hypothesis.extra.numpy.from_dtype` on the
+corresponding dtype, thus ensuring proper variation for these types.
+
 .. _v6.75.9:
 
 -------------------
