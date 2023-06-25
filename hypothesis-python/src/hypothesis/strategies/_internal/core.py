@@ -1060,11 +1060,16 @@ def _from_type_deferred(thing: Type[Ex]) -> SearchStrategy[Ex]:
     # underlying strategy wherever possible, as a form of user education, but
     # would prefer to fall back to the default "from_type(...)" repr instead of
     # "deferred(...)" for recursive types or invalid arguments.
+    thing_repr = nicerepr(thing)
+    if hasattr(thing, "__module__"):
+        module_prefix = f"{thing.__module__}."
+        if not thing_repr.startswith(module_prefix):
+            thing_repr = module_prefix + thing_repr
     return LazyStrategy(
         lambda thing: deferred(lambda: _from_type(thing, [])),
         (thing,),
         {},
-        force_repr=f"from_type({thing!r})",
+        force_repr=f"from_type({thing_repr})",
     )
 
 
@@ -1123,6 +1128,11 @@ def _from_type(thing: Type[Ex], recurse_guard: List[Type[Ex]]) -> SearchStrategy
         if types.is_a_union(thing):
             args = sorted(thing.__args__, key=types.type_sorting_key)
             return one_of([_from_type(t, recurse_guard) for t in args])
+    # We also have a special case for TypeVars.
+    # They are represented as instances like `~T` when they come here.
+    # We need to work with their type instead.
+    if isinstance(thing, TypeVar) and type(thing) in types._global_type_lookup:
+        return as_strategy(types._global_type_lookup[type(thing)], thing)
     if not types.is_a_type(thing):
         if isinstance(thing, str):
             # See https://github.com/HypothesisWorks/hypothesis/issues/3016
@@ -1190,11 +1200,6 @@ def _from_type(thing: Type[Ex], recurse_guard: List[Type[Ex]]) -> SearchStrategy
             mapping={k: v for k, v in anns.items() if k not in optional},
             optional={k: v for k, v in anns.items() if k in optional},
         )
-    # We also have a special case for TypeVars.
-    # They are represented as instances like `~T` when they come here.
-    # We need to work with their type instead.
-    if isinstance(thing, TypeVar) and type(thing) in types._global_type_lookup:
-        return as_strategy(types._global_type_lookup[type(thing)], thing)
 
     # If there's no explicitly registered strategy, maybe a subtype of thing
     # is registered - if so, we can resolve it to the subclass strategy.

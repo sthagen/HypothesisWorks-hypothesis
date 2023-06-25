@@ -18,6 +18,24 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.79.2:
+
+-------------------
+6.79.2 - 2023-06-22
+-------------------
+
+Improve the type rendered in :func:`~hypothesis.strategies.from_type`,
+which improves the coverage of Ghostwriter.
+
+.. _v6.79.1:
+
+-------------------
+6.79.1 - 2023-06-19
+-------------------
+
+We now test against Python 3.12 beta in CI, and this patch
+fixes some new deprecations.
+
 .. _v6.79.0:
 
 -------------------

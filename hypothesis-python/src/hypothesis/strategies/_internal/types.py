@@ -20,6 +20,7 @@ import io
 import ipaddress
 import numbers
 import os
+import random
 import re
 import sys
 import typing
@@ -429,7 +430,7 @@ def from_typing_type(thing):
         # Except for sequences of integers, or unions which include integer!
         # See https://github.com/HypothesisWorks/hypothesis/issues/2257
         #
-        # This block drops ByteString from the types that can be generated
+        # This block drops bytes from the types that can be generated
         # if there is more than one allowed type, and the element type is
         # not either `int` or a Union with `int` as one of its elements.
         elem_type = (getattr(thing, "__args__", None) or ["not int"])[0]
@@ -450,7 +451,7 @@ def from_typing_type(thing):
         and thing.__forward_arg__ in vars(builtins)
     ):
         return st.from_type(getattr(builtins, thing.__forward_arg__))
-    # Before Python 3.9, we sometimes have e.g. ByteString from both the typing
+    # Before Python 3.9, we sometimes have e.g. Sequence from both the typing
     # module, and collections.abc module.  Discard any type which is not it's own
     # origin, where the origin is also in the mapping.
     for t in sorted(mapping, key=type_sorting_key):
@@ -597,6 +598,7 @@ _global_type_lookup: typing.Dict[
     super: st.builds(super, st.from_type(type)),
     re.Match: st.text().map(lambda c: re.match(".", c, flags=re.DOTALL)).filter(bool),
     re.Pattern: st.builds(re.compile, st.sampled_from(["", b""])),
+    random.Random: st.randoms(),
     # Pull requests with more types welcome!
 }
 if zoneinfo is not None:  # pragma: no branch

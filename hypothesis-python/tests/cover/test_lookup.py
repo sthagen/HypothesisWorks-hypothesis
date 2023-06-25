@@ -15,6 +15,7 @@ import datetime
 import enum
 import inspect
 import io
+import random
 import re
 import string
 import sys
@@ -46,7 +47,9 @@ generics = sorted(
         t
         for t in types._global_type_lookup
         # We ignore TypeVar, because it is not a Generic type:
-        if isinstance(t, types.typing_root_type) and t != typing.TypeVar
+        if isinstance(t, types.typing_root_type)
+        and t != typing.TypeVar
+        and (sys.version_info[:2] <= (3, 11) or t != typing.ByteString)
     ),
     key=str,
 )
@@ -110,7 +113,11 @@ def test_typing_Type_Union(ex):
 @given(data=st.data())
 def test_rare_types(data, typ):
     ex = data.draw(from_type(typ))
-    assert isinstance(ex, typ)
+    with warnings.catch_warnings():
+        if sys.version_info[:2] >= (3, 12):
+            warnings.simplefilter("ignore", DeprecationWarning)
+        # ByteString is deprecated in Python 3.12
+        assert isinstance(ex, typ)
 
 
 class Elem:
@@ -752,7 +759,7 @@ def test_inference_on_generic_collections_abc_aliases(typ, data):
 def test_bytestring_not_treated_as_generic_sequence(val):
     # Check that we don't fall into the specific problem from
     # https://github.com/HypothesisWorks/hypothesis/issues/2257
-    assert not isinstance(val, typing.ByteString)
+    assert not isinstance(val, bytes)
     # Check it hasn't happened again from some other non-generic sequence type.
     for x in val:
         assert isinstance(x, set)
@@ -764,7 +771,7 @@ def test_bytestring_not_treated_as_generic_sequence(val):
 def test_bytestring_is_valid_sequence_of_int_and_parent_classes(type_):
     find_any(
         st.from_type(typing.Sequence[type_]),
-        lambda val: isinstance(val, typing.ByteString),
+        lambda val: isinstance(val, bytes),
     )
 
 
@@ -838,12 +845,23 @@ def test_hashable_type_unhashable_value():
     )
 
 
+class _EmptyClass:
+    def __init__(self, value=-1) -> None:
+        pass
+
+
 @pytest.mark.parametrize(
     "typ,repr_",
     [
         (int, "integers()"),
         (typing.List[str], "lists(text())"),
         ("not a type", "from_type('not a type')"),
+        (random.Random, "randoms()"),
+        (_EmptyClass, "from_type(tests.cover.test_lookup._EmptyClass)"),
+        (
+            st.SearchStrategy[str],
+            "from_type(hypothesis.strategies.SearchStrategy[str])",
+        ),
     ],
 )
 def test_repr_passthrough(typ, repr_):
