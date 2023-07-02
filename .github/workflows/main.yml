@@ -29,8 +29,6 @@ jobs:
           - check-format
           - check-coverage
           - check-conjecture-coverage
-          - check-py37-cover
-          - check-pypy37-cover
           - check-py38-cover
           - check-py38-nocover
           - check-py38-niche
@@ -40,6 +38,7 @@ jobs:
           - check-py310-cover
           - check-py310-nocover
           - check-py310-niche
+          - check-pypy310-cover
           # - check-py310-pyjion  # see notes in tox.ini
           - check-py311-cover
           - check-py311-nocover
@@ -72,7 +71,7 @@ jobs:
           - check-pandas13
           - check-pandas12
           - check-pandas11
-          - check-py37-oldestnumpy
+          - check-py38-oldestnumpy
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -123,7 +122,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - python-version: "3.8"
           - python-version: "3.9"
           - python-version: "3.10"
           - python-version: "3.11"
@@ -163,7 +161,7 @@ jobs:
     strategy:
       matrix:
         task:
-          - check-py37-cover
+          - check-py38-cover
           - check-py310-cover
           - check-py310-nocover
           - check-py310-niche

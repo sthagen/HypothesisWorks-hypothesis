@@ -18,6 +18,33 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.80.0:
+
+-------------------
+6.80.0 - 2023-06-27
+-------------------
+
+This release drops support for Python 3.7, `which reached end of life on
+2023-06-27 <https://devguide.python.org/versions/>`__.
+
+.. _v6.79.4:
+
+-------------------
+6.79.4 - 2023-06-27
+-------------------
+
+Fixes occasional recursion-limit-exceeded errors when validating
+deeply nested strategies. Closes: :issue:`3671`
+
+.. _v6.79.3:
+
+-------------------
+6.79.3 - 2023-06-26
+-------------------
+
+This patch updates our vendored `list of top-level domains <https://www.iana.org/domains/root/db>`__,
+which is used by the provisional :func:`~hypothesis.provisional.domains` strategy.
+
 .. _v6.79.2:
 
 -------------------

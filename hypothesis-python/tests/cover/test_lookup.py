@@ -28,7 +28,8 @@ import pytest
 
 from hypothesis import HealthCheck, assume, given, settings, strategies as st
 from hypothesis.errors import InvalidArgument, ResolutionFailed, SmallSearchSpaceWarning
-from hypothesis.internal.compat import PYPY, get_origin, get_type_hints
+from hypothesis.internal.compat import PYPY, get_type_hints
+from hypothesis.internal.conjecture.junkdrawer import stack_depth_of_caller
 from hypothesis.internal.reflection import get_pretty_function_description
 from hypothesis.strategies import from_type
 from hypothesis.strategies._internal import types
@@ -241,7 +242,7 @@ def test_register_generic_typing_strats():
     # I don't expect anyone to do this, but good to check it works as expected
     with temp_registered(
         typing.Sequence,
-        types._global_type_lookup[get_origin(typing.Set) or typing.Set],
+        types._global_type_lookup[typing.get_origin(typing.Set) or typing.Set],
     ):
         # We register sets for the abstract sequence type, which masks subtypes
         # from supertype resolution but not direct resolution
@@ -552,14 +553,10 @@ def test_resolving_recursive_type(tree):
     assert isinstance(tree, Tree)
 
 
-class TypedTree(typing.TypedDict if sys.version_info[:2] >= (3, 8) else object):
+class TypedTree(typing.TypedDict):
     nxt: typing.Optional["TypedTree"]
 
 
-@pytest.mark.skipif(
-    sys.version_info[:2] < (3, 8),
-    reason="TypedDict not available in python<3.8",
-)
 def test_resolving_recursive_typeddict():
     tree = st.from_type(TypedTree).example()
     assert isinstance(tree, dict)
@@ -602,10 +599,6 @@ class B:
         return f"B({self.nxt})"
 
 
-@pytest.mark.skipif(
-    PYPY and sys.version_info[:2] < (3, 9),
-    reason="mysterious failure on pypy/python<3.9",
-)
 @given(nxt=st.from_type(A))
 def test_resolving_mutually_recursive_types(nxt):
     i = 0
@@ -613,6 +606,22 @@ def test_resolving_mutually_recursive_types(nxt):
         assert isinstance(nxt, [A, B][i % 2])
         nxt = nxt.nxt
         i += 1
+
+
+def test_resolving_mutually_recursive_types_with_limited_stack():
+    orig_recursionlimit = sys.getrecursionlimit()
+    current_stack_depth = stack_depth_of_caller()
+    sys.setrecursionlimit(current_stack_depth + 100)
+    try:
+
+        @given(nxt=st.from_type(A))
+        def test(nxt):
+            pass
+
+        test()
+    finally:
+        assert sys.getrecursionlimit() == current_stack_depth + 100
+        sys.setrecursionlimit(orig_recursionlimit)
 
 
 class A_with_default:
