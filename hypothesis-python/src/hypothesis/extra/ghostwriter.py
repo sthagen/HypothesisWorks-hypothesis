@@ -83,7 +83,7 @@ import types
 import warnings
 from collections import OrderedDict, defaultdict
 from itertools import permutations, zip_longest
-from keyword import iskeyword
+from keyword import iskeyword as _iskeyword
 from string import ascii_lowercase
 from textwrap import dedent, indent
 from typing import (
@@ -117,6 +117,7 @@ from hypothesis.internal.validation import check_type
 from hypothesis.provisional import domains
 from hypothesis.strategies._internal.collections import ListStrategy
 from hypothesis.strategies._internal.core import BuildsStrategy
+from hypothesis.strategies._internal.deferred import DeferredStrategy
 from hypothesis.strategies._internal.flatmapped import FlatMapStrategy
 from hypothesis.strategies._internal.lazy import LazyStrategy, unwrap_strategies
 from hypothesis.strategies._internal.strategies import (
@@ -482,7 +483,7 @@ def _get_params(func: Callable) -> Dict[str, inspect.Parameter]:
                 if arg.startswith("*") or arg == "...":
                     kind = inspect.Parameter.KEYWORD_ONLY
                     continue  # we omit *varargs, if there are any
-                if iskeyword(arg.lstrip("*")) or not arg.lstrip("*").isidentifier():
+                if _iskeyword(arg.lstrip("*")) or not arg.lstrip("*").isidentifier():
                     print(repr(args))
                     break  # skip all subsequent params if this name is invalid
                 params.append(inspect.Parameter(name=arg, kind=kind))
@@ -668,6 +669,8 @@ def _valid_syntax_repr(strategy):
     # Flatten and de-duplicate any one_of strategies, whether that's from resolving
     # a Union type or combining inputs to multiple functions.
     try:
+        if isinstance(strategy, DeferredStrategy):
+            strategy = strategy.wrapped_strategy
         if isinstance(strategy, OneOfStrategy):
             seen = set()
             elems = []

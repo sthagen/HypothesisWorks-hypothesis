@@ -18,6 +18,45 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.81.2:
+
+-------------------
+6.81.2 - 2023-07-15
+-------------------
+
+If the :envvar:`HYPOTHESIS_NO_PLUGINS` environment variable is set, we'll avoid
+:ref:`loading plugins <entry-points>` such as `the old Pydantic integration
+<https://docs.pydantic.dev/latest/integrations/hypothesis/>`__ or
+`HypoFuzz' CLI options <https://hypofuzz.com/docs/quickstart.html#running-hypothesis-fuzz>`__.
+
+This is probably only useful for our own self-tests, but documented in case it might
+help narrow down any particularly weird bugs in complex environments.
+
+.. _v6.81.1:
+
+-------------------
+6.81.1 - 2023-07-11
+-------------------
+
+Fixes some lingering issues with inference of recursive types
+in `~hypothesis.strategies.from_type`. Closes :issue:`3525`.
+
+.. _v6.81.0:
+
+-------------------
+6.81.0 - 2023-07-10
+-------------------
+
+This release further improves our ``.patch``-file support from
+:ref:`version 6.75 <v6.75.0>`, skipping duplicates, tests which use
+:func:`~hypothesis.strategies.data` (and don't support
+:obj:`@example() <hypothesis.example>`\ ), and various broken edge-cases.
+
+Because :pypi:`libCST` has released version 1.0 which uses the native parser
+by default, we no longer set the ``LIBCST_PARSER_TYPE=native`` environment
+variable.  If you are using an older version, you may need to upgrade or
+set this envvar for yourself.
+
 .. _v6.80.1:
 
 -------------------
