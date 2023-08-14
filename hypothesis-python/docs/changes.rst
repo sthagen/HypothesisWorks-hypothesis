@@ -18,6 +18,42 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.82.4:
+
+-------------------
+6.82.4 - 2023-08-12
+-------------------
+
+This patch ensures that we always close the download connection in
+:class:`~hypothesis.database.GitHubArtifactDatabase`.
+
+.. _v6.82.3:
+
+-------------------
+6.82.3 - 2023-08-08
+-------------------
+
+We can now pretty-print combinations of *zero* :class:`enum.Flag`
+values, like ``SomeFlag(0)``, which has never worked before.
+
+.. _v6.82.2:
+
+-------------------
+6.82.2 - 2023-08-06
+-------------------
+
+This patch fixes pretty-printing of combinations of :class:`enum.Flag`
+values, which was previously an error (:issue:`3709`).
+
+.. _v6.82.1:
+
+-------------------
+6.82.1 - 2023-08-05
+-------------------
+
+Improve shrinking of floats in narrow regions that don't cross an integer
+boundary. Closes :issue:`3357`.
+
 .. _v6.82.0:
 
 -------------------
