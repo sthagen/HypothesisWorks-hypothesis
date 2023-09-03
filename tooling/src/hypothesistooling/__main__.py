@@ -73,7 +73,7 @@ def codespell(*files):
 
 @task()
 def lint():
-    pip_tool("ruff", "."),
+    pip_tool("ruff", ".")
     codespell(*(f for f in tools.all_files() if not f.endswith("by-domain.txt")))
 
 
@@ -207,7 +207,7 @@ def format():
             o.write("\n")
 
     codespell("--write-changes", *files_to_format, *doc_files_to_format)
-    pip_tool("ruff", "--fix-only", "."),
+    pip_tool("ruff", "--fix-only", ".")
     pip_tool("shed", *files_to_format, *doc_files_to_format)
 
 
@@ -236,7 +236,7 @@ def check_not_changed():
 
 
 @task()
-def compile_requirements(upgrade=False):
+def compile_requirements(*, upgrade=False):
     if upgrade:
         extra = ["--upgrade", "--rebuild"]
     else:
@@ -389,10 +389,10 @@ def run_tox(task, version, *args):
 # When a version is added or removed, manually update the env lists in tox.ini and
 # workflows/main.yml, and the `Programming Language ::` specifiers in setup.py
 PYTHONS = {
-    "3.8": "3.8.17",
-    "3.9": "3.9.17",
-    "3.10": "3.10.12",
-    "3.11": "3.11.4",
+    "3.8": "3.8.18",
+    "3.9": "3.9.18",
+    "3.10": "3.10.13",
+    "3.11": "3.11.5",
     "3.12": "3.12-dev",
     "3.13": "3.13-dev",
     "pypy3.8": "pypy3.8-7.3.11",

@@ -18,6 +18,42 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.83.0:
+
+-------------------
+6.83.0 - 2023-09-01
+-------------------
+
+Adds a new ``codec=`` option in :func:`~hypothesis.strategies.characters`, making it
+convenient to produce only characters which can be encoded as ``ascii`` or ``utf-8``
+bytestrings.
+
+Support for other codecs will be added in a future release.
+
+.. _v6.82.7:
+
+-------------------
+6.82.7 - 2023-08-28
+-------------------
+
+This patch updates our autoformatting tools, improving our code style without any API changes.
+
+.. _v6.82.6:
+
+-------------------
+6.82.6 - 2023-08-20
+-------------------
+
+This patch enables and fixes many more of :pypi:`ruff`\ 's lint rules.
+
+.. _v6.82.5:
+
+-------------------
+6.82.5 - 2023-08-18
+-------------------
+
+Fixes the error message for missing ``[cli]`` extra.
+
 .. _v6.82.4:
 
 -------------------
