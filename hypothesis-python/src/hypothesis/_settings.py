@@ -20,7 +20,17 @@ import inspect
 import os
 import warnings
 from enum import Enum, EnumMeta, IntEnum, unique
-from typing import TYPE_CHECKING, Any, Collection, Dict, List, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Collection,
+    Dict,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import attr
 
@@ -128,7 +138,7 @@ class settings(metaclass=settingsMeta):
     """
 
     __definitions_are_locked = False
-    _profiles: Dict[str, "settings"] = {}
+    _profiles: ClassVar[Dict[str, "settings"]] = {}
     __module__ = "hypothesis"
 
     def __getattr__(self, name):
@@ -520,6 +530,18 @@ class HealthCheck(Enum, metaclass=HealthCheckMeta):
     This check requires the :ref:`Hypothesis pytest plugin<pytest-plugin>`,
     which is enabled by default when running Hypothesis inside pytest."""
 
+    differing_executors = 10
+    """Checks if :func:`@given <hypothesis.given>` has been applied to a test
+    which is executed by different :ref:`executors<custom-function-execution>`.
+    If your test function is defined as a method on a class, that class will be
+    your executor, and subclasses executing an inherited test is a common way
+    for things to go wrong.
+
+    The correct fix is often to bring the executor instance under the control
+    of hypothesis by explicit parametrization over, or sampling from,
+    subclasses, or to refactor so that :func:`@given <hypothesis.given>` is
+    specified on leaf subclasses."""
+
 
 @unique
 class Verbosity(IntEnum):
@@ -694,7 +716,7 @@ def note_deprecation(
     message: str, *, since: str, has_codemod: bool, stacklevel: int = 0
 ) -> None:
     if since != "RELEASEDAY":
-        date = datetime.datetime.strptime(since, "%Y-%m-%d").date()
+        date = datetime.date.fromisoformat(since)
         assert datetime.date(2021, 1, 1) <= date
     if has_codemod:
         message += (

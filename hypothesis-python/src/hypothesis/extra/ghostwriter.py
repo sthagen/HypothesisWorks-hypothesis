@@ -158,7 +158,6 @@ except {exceptions}:
 
 Except = Union[Type[Exception], Tuple[Type[Exception], ...]]
 ImportSet = Set[Union[str, Tuple[str, str]]]
-RE_TYPES = (type(re.compile(".")), type(re.match(".", "abc")))
 _quietly_settings = settings(
     database=None,
     deadline=None,
@@ -587,7 +586,7 @@ def _assert_eq(style: str, a: str, b: str) -> str:
 
 def _imports_for_object(obj):
     """Return the imports for `obj`, which may be empty for e.g. lambdas"""
-    if isinstance(obj, RE_TYPES):
+    if isinstance(obj, (re.Pattern, re.Match)):
         return {"re"}
     try:
         if is_generic_type(obj):
@@ -820,7 +819,7 @@ def _make_test_body(
         given_strategies = given_strategies or _get_strategies(
             *funcs, pass_result_to_next_func=ghost in ("idempotent", "roundtrip")
         )
-        reprs = [((k,) + _valid_syntax_repr(v)) for k, v in given_strategies.items()]
+        reprs = [((k, *_valid_syntax_repr(v))) for k, v in given_strategies.items()]
         imports = imports.union(*(imp for _, imp, _ in reprs))
         given_args = ", ".join(f"{k}={v}" for k, _, v in reprs)
     given_args = _st_strategy_names(given_args)

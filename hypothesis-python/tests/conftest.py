@@ -12,6 +12,7 @@ import gc
 import random
 import sys
 import time as time_module
+from functools import wraps
 
 import pytest
 
@@ -48,6 +49,11 @@ def pytest_addoption(parser):
     parser.addoption("--hypothesis-update-outputs", action="store_true")
     parser.addoption("--hypothesis-learn-to-normalize", action="store_true")
 
+    # New in pytest 6, so we add a shim on old versions to avoid missing-arg errors
+    arg = "--durations-min"
+    if arg not in sum((a._long_opts for g in parser._groups for a in g.options), []):
+        parser.addoption(arg, action="store", default=1.0)
+
 
 @pytest.fixture(scope="function", autouse=True)
 def _gc_before_each_test():
@@ -81,10 +87,13 @@ def _consistently_increment_time(monkeypatch):
     def freeze():
         frozen[0] = True
 
-    monkeypatch.setattr(time_module, "time", time)
-    monkeypatch.setattr(time_module, "monotonic", time)
-    monkeypatch.setattr(time_module, "perf_counter", time)
-    monkeypatch.setattr(time_module, "sleep", sleep)
+    def _patch(name, fn):
+        monkeypatch.setattr(time_module, name, wraps(getattr(time_module, name))(fn))
+
+    _patch("time", time)
+    _patch("monotonic", time)
+    _patch("perf_counter", time)
+    _patch("sleep", sleep)
     monkeypatch.setattr(time_module, "freeze", freeze, raising=False)
 
 

@@ -70,6 +70,7 @@ from hypothesis.executors import default_new_style_executor, new_style_executor
 from hypothesis.internal.compat import (
     PYPY,
     BaseExceptionGroup,
+    add_note,
     bad_django_TestCase,
     get_type_hints,
     int_from_bytes,
@@ -165,7 +166,7 @@ class example:
 
     def xfail(
         self,
-        condition: bool = True,
+        condition: bool = True,  # noqa: FBT002
         *,
         reason: str = "",
         raises: Union[
@@ -867,7 +868,8 @@ class StateForActualGivenExecution:
         except (
             HypothesisDeprecationWarning,
             FailedHealthCheck,
-        ) + skip_exceptions_to_reraise():
+            *skip_exceptions_to_reraise(),
+        ):
             # These are fatal errors or control exceptions that should stop the
             # engine, so we re-raise them.
             raise
@@ -1006,15 +1008,6 @@ class StateForActualGivenExecution:
                 ran_example.freeze()  # pragma: no branch
                 # No branch is possible here because we never have an active exception.
         _raise_to_user(errors_to_report, self.settings, report_lines)
-
-
-def add_note(exc, note):
-    try:
-        exc.add_note(note)
-    except AttributeError:
-        if not hasattr(exc, "__notes__"):
-            exc.__notes__ = []
-        exc.__notes__.append(note)
 
 
 def _raise_to_user(errors_to_report, settings, target_lines, trailer=""):
@@ -1188,6 +1181,8 @@ def given(
                 )
             given_kwargs[name] = st.from_type(hints[name])
 
+        prev_self = Unset = object()
+
         @impersonate(test)
         @define_function_signature(test.__name__, test.__doc__, new_signature)
         def wrapped_test(*arguments, **kwargs):
@@ -1249,6 +1244,23 @@ def given(
                     "to ensure that each example is run in a separate "
                     "database transaction."
                 )
+            if settings.database is not None:
+                nonlocal prev_self
+                # Check selfy really is self (not e.g. a mock) before we health-check
+                cur_self = (
+                    stuff.selfy
+                    if getattr(type(stuff.selfy), test.__name__, None) is wrapped_test
+                    else None
+                )
+                if prev_self is Unset:
+                    prev_self = cur_self
+                elif cur_self is not prev_self:
+                    msg = (
+                        f"The method {test.__qualname__} was called from multiple "
+                        "different executors. This may lead to flaky tests and "
+                        "nonreproducible errors when replaying from database."
+                    )
+                    fail_health_check(settings, msg, HealthCheck.differing_executors)
 
             state = StateForActualGivenExecution(
                 test_runner, stuff, test, settings, random, wrapped_test
@@ -1478,6 +1490,9 @@ def find(
     )
 
     if database_key is None and settings.database is not None:
+        # Note: The database key is not guaranteed to be unique. If not, replaying
+        # of database examples may fail to reproduce due to being replayed on the
+        # wrong condition.
         database_key = function_digest(condition)
 
     if not isinstance(specifier, SearchStrategy):

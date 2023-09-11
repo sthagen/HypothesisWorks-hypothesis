@@ -43,6 +43,15 @@ GRAALPY = platform.python_implementation() == "GraalVM"
 WINDOWS = platform.system() == "Windows"
 
 
+def add_note(exc, note):
+    try:
+        exc.add_note(note)
+    except AttributeError:
+        if not hasattr(exc, "__notes__"):
+            exc.__notes__ = []
+        exc.__notes__.append(note)
+
+
 def escape_unicode_characters(s: str) -> str:
     return codecs.encode(s, "unicode_escape").decode("ascii")
 
@@ -75,7 +84,7 @@ def is_typed_named_tuple(cls):
 
 
 def _hint_and_args(x):
-    return (x,) + get_args(x)
+    return (x, *get_args(x))
 
 
 def get_type_hints(thing):

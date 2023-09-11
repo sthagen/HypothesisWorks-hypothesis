@@ -88,13 +88,17 @@ def function_digest(function):
     multiple processes and is prone to changing significantly in response to
     minor changes to the function.
 
-    No guarantee of uniqueness though it usually will be.
+    No guarantee of uniqueness though it usually will be. Digest collisions
+    lead to unfortunate but not fatal problems during database replay.
     """
     hasher = hashlib.sha384()
     try:
         src = inspect.getsource(function)
     except (OSError, TypeError):
         # If we can't actually get the source code, try for the name as a fallback.
+        # NOTE: We might want to change this to always adding function.__qualname__,
+        # to differentiate f.x. two classes having the same function implementation
+        # with class-dependent behaviour.
         try:
             hasher.update(function.__name__.encode())
         except AttributeError:
@@ -266,7 +270,7 @@ def is_first_param_referenced_in_function(f):
         tree = ast.parse(textwrap.dedent(inspect.getsource(f)))
     except Exception:
         return True  # Assume it's OK unless we know otherwise
-    name = list(get_signature(f).parameters)[0]
+    name = next(iter(get_signature(f).parameters))
     return any(
         isinstance(node, ast.Name)
         and node.id == name
@@ -451,7 +455,7 @@ def nicerepr(v):
         return re.sub(r"(\[)~([A-Z][a-z]*\])", r"\g<1>\g<2>", pretty(v))
 
 
-def repr_call(f, args, kwargs, reorder=True):
+def repr_call(f, args, kwargs, *, reorder=True):
     # Note: for multi-line pretty-printing, see RepresentationPrinter.repr_call()
     if reorder:
         args, kwargs = convert_positional_arguments(f, args, kwargs)
@@ -519,7 +523,7 @@ def define_function_signature(name, docstring, signature):
     for a in signature.parameters:
         check_valid_identifier(a)
 
-    used_names = list(signature.parameters) + [name]
+    used_names = {*signature.parameters, name}
 
     newsig = signature.replace(
         parameters=[

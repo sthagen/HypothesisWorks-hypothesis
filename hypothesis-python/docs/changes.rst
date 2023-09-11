@@ -18,6 +18,79 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.84.3:
+
+-------------------
+6.84.3 - 2023-09-10
+-------------------
+
+This patch automatically disables the :obj:`~hypothesis.HealthCheck.differing_executors`
+health check for methods which are also pytest parametrized tests, because
+those were mostly false alarms (:issue:`3733`).
+
+.. _v6.84.2:
+
+-------------------
+6.84.2 - 2023-09-06
+-------------------
+
+Building on recent releases, :func:`~hypothesis.strategies.characters`
+now accepts _any_ ``codec=``, not just ``"utf-8"`` and ``"ascii"``.
+
+This includes standard codecs from the :mod:`codecs` module and their
+aliases, platform specific and user-registered codecs if they are
+available, and `python-specific text encodings
+<https://docs.python.org/3/library/codecs.html#python-specific-encodings>`__
+(but not text transforms or binary transforms).
+
+.. _v6.84.1:
+
+-------------------
+6.84.1 - 2023-09-05
+-------------------
+
+This patch by Reagan Lee makes ``st.text(...).filter(str.isidentifier)``
+return an efficient custom strategy (:issue:`3480`).
+
+.. _v6.84.0:
+
+-------------------
+6.84.0 - 2023-09-04
+-------------------
+
+The :func:`~hypothesis.strategies.from_regex` strategy now takes an optional
+``alphabet=characters(codec="utf-8")`` argument for unicode strings, like
+:func:`~hypothesis.strategies.text`.
+
+This offers more and more-consistent control over the generated strings,
+removing previously-hard-coded limitations.  With ``fullmatch=False`` and
+``alphabet=characters()``, surrogate characters are now possible in leading
+and trailing text as well as the body of the match.  Negated character classes
+such as ``[^A-Z]`` or ``\S`` had a hard-coded exclusion of control characters
+and surrogate characters; now they permit anything in ``alphabet=`` consistent
+with the class, and control characters are permitted by default.
+
+.. _v6.83.2:
+
+-------------------
+6.83.2 - 2023-09-04
+-------------------
+
+Add a health check that detects if the same test is executed
+several times by :ref:`different executors<custom-function-execution>`.
+This can lead to difficult-to-debug problems such as :issue:`3446`.
+
+.. _v6.83.1:
+
+-------------------
+6.83.1 - 2023-09-03
+-------------------
+
+Pretty-printing of failing examples can now use functions registered with
+:func:`IPython.lib.pretty.for_type` or :func:`~IPython.lib.pretty.for_type_by_name`,
+as well as restoring compatibility with ``_repr_pretty_`` callback methods
+which were accidentally broken in :ref:`version 6.61.2 <v6.61.2>` (:issue:`3721`).
+
 .. _v6.83.0:
 
 -------------------
@@ -123,7 +196,7 @@ help narrow down any particularly weird bugs in complex environments.
 -------------------
 
 Fixes some lingering issues with inference of recursive types
-in `~hypothesis.strategies.from_type`. Closes :issue:`3525`.
+in :func:`~hypothesis.strategies.from_type`. Closes :issue:`3525`.
 
 .. _v6.81.0:
 
@@ -314,8 +387,8 @@ is strongly recommended.  You can ensure you have the dependencies with
 -------------------
 
 This patch continues the work started in :pull:`3651` by adding
-:pypi:`ruff` linter rules for pyflakes, flake8-comprehensions, and
-flake8-implicit-str-concat.
+:pypi:`ruff` linter rules for :pypi:`pyflakes`, :pypi:`flake8-comprehensions`,
+and :pypi:`flake8-implicit-str-concat`.
 
 .. _v6.75.5:
 
@@ -1163,7 +1236,7 @@ is really annoying.  See :issue:`2701` for details.
 6.48.0 - 2022-06-27
 -------------------
 
-This release raises :class:`~unittest.SkipTest` for which never executed any
+This release raises :class:`~unittest.SkipTest` for tests which never executed any
 examples, for example because the :obj:`~hypothesis.settings.phases` setting
 excluded the :obj:`~hypothesis.Phase.explicit`, :obj:`~hypothesis.Phase.reuse`,
 and :obj:`~hypothesis.Phase.generate` phases.  This helps to avoid cases where
