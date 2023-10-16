@@ -391,10 +391,16 @@ def from_typing_type(thing):
         for k, v in _global_type_lookup.items()
         if is_generic_type(k) and try_issubclass(k, thing)
     }
-    # Drop some unusual cases for simplicity
-    for weird in (tuple, getattr(os, "_Environ", None)):
-        if len(mapping) > 1:
-            mapping.pop(weird, None)
+    # Drop some unusual cases for simplicity, including tuples or its
+    # subclasses (e.g. namedtuple)
+    if len(mapping) > 1:
+        _Environ = getattr(os, "_Environ", None)
+        mapping.pop(_Environ, None)
+    tuple_types = [t for t in mapping if isinstance(t, type) and issubclass(t, tuple)]
+    if len(mapping) > len(tuple_types):
+        for tuple_type in tuple_types:
+            mapping.pop(tuple_type)
+
     # After we drop Python 3.8 and can rely on having generic builtin types, we'll
     # be able to simplify this logic by dropping the typing-module handling.
     if {dict, set, typing.Dict, typing.Set}.intersection(mapping):
@@ -407,6 +413,7 @@ def from_typing_type(thing):
         # the ghostwriter than it's worth, via undefined names in the repr.
         mapping.pop(collections.deque, None)
         mapping.pop(typing.Deque, None)
+
     if len(mapping) > 1:
         # issubclass treats bytestring as a kind of sequence, which it is,
         # but treating it as such breaks everything else when it is presumed
@@ -444,9 +451,13 @@ def from_typing_type(thing):
             mapping.pop(t)
     # Sort strategies according to our type-sorting heuristic for stable output
     strategies = [
-        v if isinstance(v, st.SearchStrategy) else v(thing)
-        for k, v in sorted(mapping.items(), key=lambda kv: type_sorting_key(kv[0]))
-        if sum(try_issubclass(k, T) for T in mapping) == 1
+        s
+        for s in (
+            v if isinstance(v, st.SearchStrategy) else v(thing)
+            for k, v in sorted(mapping.items(), key=lambda kv: type_sorting_key(kv[0]))
+            if sum(try_issubclass(k, T) for T in mapping) == 1
+        )
+        if s != NotImplemented
     ]
     empty = ", ".join(repr(s) for s in strategies if s.is_empty)
     if empty or not strategies:
@@ -484,6 +495,14 @@ utc_offsets = st.builds(
 # As a general rule, we try to limit this to scalars because from_type()
 # would have to decide on arbitrary collection elements, and we'd rather
 # not (with typing module generic types and some builtins as exceptions).
+#
+# Strategy Callables may return NotImplemented, which should be treated in the
+# same way as if the type was not registered.
+#
+# Note that NotImplemented cannot be typed in Python 3.8 because there's no type
+# exposed for it, and NotImplemented itself is typed as Any so that it can be
+# returned without being listed in a function signature:
+# https://github.com/python/mypy/issues/6710#issuecomment-485580032
 _global_type_lookup: typing.Dict[
     type, typing.Union[st.SearchStrategy, typing.Callable[[type], st.SearchStrategy]]
 ] = {
