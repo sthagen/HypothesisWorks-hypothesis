@@ -18,6 +18,29 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.88.3:
+
+-------------------
+6.88.3 - 2023-11-05
+-------------------
+
+This patch refactors ``from_type(typing.Tuple)``, allowing
+:func:`~hypothesis.strategies.register_type_strategy` to take effect
+for tuples instead of being silently ignored (:issue:`3750`).
+
+Thanks to Nick Collins for reporting and extensive work on this issue.
+
+.. _v6.88.2:
+
+-------------------
+6.88.2 - 2023-11-05
+-------------------
+
+This patch improves the speed of the explain phase on python 3.12+, by using the new
+:mod:`sys.monitoring` module to collect coverage, instead of :obj:`sys.settrace`.
+
+Thanks to Liam DeVoe for :pull:`3776`!
+
 .. _v6.88.1:
 
 -------------------
