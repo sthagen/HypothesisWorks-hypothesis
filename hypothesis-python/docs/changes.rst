@@ -18,6 +18,37 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.92.5:
+
+-------------------
+6.92.5 - 2024-01-08
+-------------------
+
+This patch registers explicit strategies for a handful of builtin types,
+motivated by improved introspection in PyPy 7.3.14 triggering existing
+internal warnings.
+Thanks to Carl Friedrich Bolz-Tereick for helping us work out what changed!
+
+.. _v6.92.4:
+
+-------------------
+6.92.4 - 2024-01-08
+-------------------
+
+This patch fixes an error when writing :doc:`observability <observability>` reports without a pre-existing ``.hypothesis`` directory.
+
+.. _v6.92.3:
+
+-------------------
+6.92.3 - 2024-01-08
+-------------------
+
+This patch adds a new environment variable ``HYPOTHESIS_EXPERIMENTAL_OBSERVABILITY_NOCOVER``,
+which turns on :doc:`observability <observability>` data collection without collecting
+code coverage data, which may be faster on Python 3.11 and earlier.
+
+Thanks to Harrison Goldstein for reporting and fixing :issue:`3821`.
+
 .. _v6.92.2:
 
 -------------------
