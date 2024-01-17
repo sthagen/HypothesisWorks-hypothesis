@@ -18,6 +18,28 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.96.0:
+
+-------------------
+6.96.0 - 2024-01-17
+-------------------
+
+Warns when constructing a `repr` that is overly long. This can
+happen by accident if stringifying arbitrary strategies, and
+is expensive in time and memory. The associated deferring of
+these long strings in :func:`~hypothesis.strategies.sampled_from`
+should also lead to improved performance.
+
+.. _v6.95.0:
+
+-------------------
+6.95.0 - 2024-01-17
+-------------------
+
+This release adds the ability to pass any object to :func:`~hypothesis.note`, instead of just strings. The pretty-printed representation of the object will be used.
+
+See also :issue:`3843`.
+
 .. _v6.94.0:
 
 -------------------
