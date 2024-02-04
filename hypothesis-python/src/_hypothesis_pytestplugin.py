@@ -195,7 +195,7 @@ else:
                 pass
             core.global_force_seed = seed
 
-    @pytest.hookimpl(hookwrapper=True)
+    @pytest.hookimpl(wrapper=True)
     def pytest_runtest_call(item):
         __tracebackhide__ = True
         if not (hasattr(item, "obj") and "hypothesis" in sys.modules):
@@ -321,7 +321,7 @@ else:
         else:
             return getattr(config, key, default)
 
-    @pytest.hookimpl(hookwrapper=True)
+    @pytest.hookimpl(wrapper=True)
     def pytest_runtest_makereport(item, call):
         report = (yield).get_result()
         if hasattr(item, "hypothesis_report_information"):
