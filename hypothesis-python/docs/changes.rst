@@ -18,6 +18,44 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.98.1:
+
+-------------------
+6.98.1 - 2024-02-05
+-------------------
+
+This release improves our distribution of generated values for all strategies, by doing a better job of tracking which values we have generated before and avoiding generating them again.
+
+For example, ``st.lists(st.integers())`` previously generated ~5 each of ``[]`` ``[0]`` in 100 examples. In this release, each of ``[]`` and ``[0]`` are generated ~1-2 times each.
+
+.. _v6.98.0:
+
+-------------------
+6.98.0 - 2024-02-05
+-------------------
+
+This release deprecates use of the global random number generator while drawing
+from a strategy, because this makes test cases less diverse and prevents us
+from reporting minimal counterexamples (:issue:`3810`).
+
+If you see this new warning, you can get a quick fix by using
+:func:`~hypothesis.strategies.randoms`; or use more idiomatic strategies
+:func:`~hypothesis.strategies.sampled_from`, :func:`~hypothesis.strategies.floats`,
+:func:`~hypothesis.strategies.integers`, and so on.
+
+Note that the same problem applies to e.g. ``numpy.random``, but
+for performance reasons we only check the stdlib :mod:`random` module -
+ignoring even other sources passed to :func:`~hypothesis.register_random`.
+
+.. _v6.97.6:
+
+-------------------
+6.97.6 - 2024-02-04
+-------------------
+
+This patch updates our vendored `list of top-level domains <https://www.iana.org/domains/root/db>`__,
+which is used by the provisional :func:`~hypothesis.provisional.domains` strategy.
+
 .. _v6.97.5:
 
 -------------------
