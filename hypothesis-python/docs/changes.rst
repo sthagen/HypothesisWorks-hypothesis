@@ -18,6 +18,23 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.99.8:
+
+-------------------
+6.99.8 - 2024-03-18
+-------------------
+
+This patch continues our work on refactoring shrinker internals (:issue:`3921`).
+
+.. _v6.99.7:
+
+-------------------
+6.99.7 - 2024-03-18
+-------------------
+
+This release resolves :py:exc:`PermissionError` that come from
+creating databases on inaccessible paths.
+
 .. _v6.99.6:
 
 -------------------
