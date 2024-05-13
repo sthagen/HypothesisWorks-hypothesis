@@ -18,6 +18,45 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.102.1:
+
+--------------------
+6.102.1 - 2024-05-13
+--------------------
+
+This patch fixes an overly strict internal type assertion.
+
+.. _v6.102.0:
+
+--------------------
+6.102.0 - 2024-05-13
+--------------------
+
+This release improves our support for the :pypi:`annotated-types` iterable
+``GroupedMetadata`` protocol.  In order to treat the elements "as if they
+had been unpacked", if one such element is a :class:`~hypothesis.strategies.SearchStrategy`
+we now resolve to that strategy.  Previously, we treated this as an unknown
+filter predicate.
+
+We expect this to be useful for libraries implementing custom metadata -
+instead of requiring downstream integration, they can implement the protocol
+and yield a lazily-created strategy.  Doing so only if Hypothesis is in
+:obj:`sys.modules` gives powerful integration with no runtime overhead
+or extra dependencies.
+
+.. _v6.101.0:
+
+--------------------
+6.101.0 - 2024-05-13
+--------------------
+
+The :func:`~hypothesis.extra.django.from_model` function currently
+tries to create a strategy for :obj:`~django:django.db.models.AutoField`
+fields if they don't have :attr:`~django:django.db.models.Field.auto_created`
+set to `True`.  The docs say it's supposed to skip all
+:obj:`~django:django.db.models.AutoField` fields, so this patch updates
+the code to do what the docs say (:issue:`3978`).
+
 .. _v6.100.8:
 
 --------------------
