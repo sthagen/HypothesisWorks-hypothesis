@@ -18,6 +18,23 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.110.0:
+
+--------------------
+6.110.0 - 2024-08-07
+--------------------
+
+Support :obj:`~python:typing.LiteralString`
+in :func:`~hypothesis.strategies.from_type`.
+
+.. _v6.109.1:
+
+--------------------
+6.109.1 - 2024-08-07
+--------------------
+
+This patch makes progress towards adding type hints to our internal conjecture engine (:issue:`3074`).
+
 .. _v6.109.0:
 
 --------------------
