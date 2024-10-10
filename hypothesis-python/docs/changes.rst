@@ -18,6 +18,23 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.114.1:
+
+--------------------
+6.114.1 - 2024-10-10
+--------------------
+
+This patch upgrades remaining type annotations to Python 3.9 syntax.
+
+.. _v6.114.0:
+
+--------------------
+6.114.0 - 2024-10-09
+--------------------
+
+This release drops support for Python 3.8, `which reached end of life on
+2024-10-07 <https://devguide.python.org/versions/>`__.
+
 .. _v6.113.0:
 
 --------------------
