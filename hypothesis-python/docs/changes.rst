@@ -18,6 +18,26 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.115.2:
+
+--------------------
+6.115.2 - 2024-10-14
+--------------------
+
+This release improves integer shrinking by folding the endpoint upweighting for :func:`~hypothesis.strategies.integers` into the ``weights`` parameter of our IR (:issue:`3921`).
+
+If you maintain an alternative backend as part of our (for now explicitly unstable) :ref:`alternative-backends`, this release changes the type of the ``weights`` parameter to ``draw_integer`` and may be a breaking change for you.
+
+.. _v6.115.1:
+
+--------------------
+6.115.1 - 2024-10-14
+--------------------
+
+This patch improves the performance of :func:`~hypothesis.strategies.from_type` with
+`pydantic.types.condate <https://docs.pydantic.dev/latest/api/types/#pydantic.types.condate>`__
+(:issue:`4000`).
+
 .. _v6.115.0:
 
 --------------------
