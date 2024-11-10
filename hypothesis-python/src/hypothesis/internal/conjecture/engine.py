@@ -13,7 +13,7 @@ import math
 import textwrap
 import time
 from collections import defaultdict
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager, suppress
 from datetime import timedelta
 from enum import Enum
@@ -44,20 +44,12 @@ from hypothesis.errors import (
     StopTest,
 )
 from hypothesis.internal.cache import LRUReusedCache
-from hypothesis.internal.compat import (
-    NotRequired,
-    TypeAlias,
-    TypedDict,
-    ceil,
-    int_from_bytes,
-    override,
-)
+from hypothesis.internal.compat import NotRequired, TypeAlias, TypedDict, ceil, override
 from hypothesis.internal.conjecture.data import (
     AVAILABLE_PROVIDERS,
     ConjectureData,
     ConjectureResult,
     DataObserver,
-    Example,
     HypothesisProvider,
     InterestingOrigin,
     IRKWargsType,
@@ -67,6 +59,7 @@ from hypothesis.internal.conjecture.data import (
     Status,
     _Overrun,
     ir_kwargs_key,
+    ir_size_nodes,
     ir_value_key,
 )
 from hypothesis.internal.conjecture.datatree import (
@@ -74,7 +67,11 @@ from hypothesis.internal.conjecture.datatree import (
     PreviouslyUnseenBehaviour,
     TreeRecordingObserver,
 )
-from hypothesis.internal.conjecture.junkdrawer import clamp, ensure_free_stackframes
+from hypothesis.internal.conjecture.junkdrawer import (
+    clamp,
+    ensure_free_stackframes,
+    startswith,
+)
 from hypothesis.internal.conjecture.pareto import NO_SCORE, ParetoFront, ParetoOptimiser
 from hypothesis.internal.conjecture.shrinker import Shrinker, sort_key
 from hypothesis.internal.healthcheck import fail_health_check
@@ -85,6 +82,7 @@ CACHE_SIZE: Final[int] = 10000
 MUTATION_POOL_SIZE: Final[int] = 100
 MIN_TEST_CALLS: Final[int] = 10
 BUFFER_SIZE: Final[int] = 8 * 1024
+BUFFER_SIZE_IR: Final[int] = 8 * 1024
 
 # If the shrinking phase takes more than five minutes, abort it early and print
 # a warning.   Many CI systems will kill a build after around ten minutes with
@@ -266,6 +264,8 @@ class ConjectureRunner:
         self.__data_cache = LRUReusedCache(CACHE_SIZE)
         self.__data_cache_ir = LRUReusedCache(CACHE_SIZE)
 
+        self.reused_previously_shrunk_test_case = False
+
         self.__pending_call_explanation: Optional[str] = None
         self._switch_to_hypothesis_provider: bool = False
 
@@ -330,7 +330,7 @@ class ConjectureRunner:
     def _cache_key_ir(
         self,
         *,
-        nodes: Optional[list[IRNode]] = None,
+        nodes: Optional[Sequence[IRNode]] = None,
         data: Union[ConjectureData, ConjectureResult, None] = None,
     ) -> tuple[tuple[Any, ...], ...]:
         assert (nodes is not None) ^ (data is not None)
@@ -373,13 +373,23 @@ class ConjectureRunner:
             self.__data_cache_ir[key] = result
 
     def cached_test_function_ir(
-        self, nodes: list[IRNode], *, error_on_discard: bool = False
+        self,
+        nodes: Sequence[IRNode],
+        *,
+        error_on_discard: bool = False,
+        extend: int = 0,
     ) -> Union[ConjectureResult, _Overrun]:
         key = self._cache_key_ir(nodes=nodes)
         try:
-            return self.__data_cache_ir[key]
+            cached = self.__data_cache_ir[key]
+            # if we have a cached overrun for this key, but we're allowing extensions
+            # of the nodes, it could in fact run to a valid data if we try.
+            if extend == 0 or cached.status is not Status.OVERRUN:
+                return cached
         except KeyError:
             pass
+
+        max_length = min(BUFFER_SIZE_IR, ir_size_nodes(nodes) + extend)
 
         # explicitly use a no-op DataObserver here instead of a TreeRecordingObserver.
         # The reason is we don't expect simulate_test_function to explore new choices
@@ -396,7 +406,9 @@ class ConjectureRunner:
             trial_observer = DiscardObserver()
 
         try:
-            trial_data = self.new_conjecture_data_ir(nodes, observer=trial_observer)
+            trial_data = self.new_conjecture_data_ir(
+                nodes, observer=trial_observer, max_length=max_length
+            )
             self.tree.simulate_test_function(trial_data)
         except PreviouslyUnseenBehaviour:
             pass
@@ -408,7 +420,7 @@ class ConjectureRunner:
             except KeyError:
                 pass
 
-        data = self.new_conjecture_data_ir(nodes)
+        data = self.new_conjecture_data_ir(nodes, max_length=max_length)
         # note that calling test_function caches `data` for us, for both an ir
         # tree key and a buffer key.
         self.test_function(data)
@@ -744,34 +756,14 @@ class ConjectureRunner:
         if not self.report_debug_info:
             return
 
-        stack: list[Ls] = [[]]
-
-        def go(ex: Example) -> None:
-            if ex.length == 0:
-                return
-            if len(ex.children) == 0:
-                stack[-1].append(int_from_bytes(data.buffer[ex.start : ex.end]))
-            else:
-                node: Ls = []
-                stack.append(node)
-
-                for v in ex.children:
-                    go(v)
-                stack.pop()
-                if len(node) == 1:
-                    stack[-1].extend(node)
-                else:
-                    stack[-1].append(node)
-
-        go(data.examples[0])
-        assert len(stack) == 1
-
         status = repr(data.status)
-
         if data.status == Status.INTERESTING:
             status = f"{status} ({data.interesting_origin!r})"
 
-        self.debug(f"{data.index} bytes {stack[0]!r} -> {status}, {data.output}")
+        nodes = data.examples.ir_tree_nodes
+        self.debug(
+            f"{len(nodes)} nodes {[n.value for n in nodes]} -> {status}, {data.output}"
+        )
 
     def run(self) -> None:
         with local_settings(self.settings):
@@ -825,6 +817,7 @@ class ConjectureRunner:
             )
             factor = 0.1 if (Phase.generate in self.settings.phases) else 1
             desired_size = max(2, ceil(factor * self.settings.max_examples))
+            primary_corpus_size = len(corpus)
 
             if len(corpus) < desired_size:
                 extra_corpus = list(self.settings.database.fetch(self.secondary_key))
@@ -838,11 +831,29 @@ class ConjectureRunner:
                 extra.sort(key=sort_key)
                 corpus.extend(extra)
 
-            for existing in corpus:
+            # We want a fast path where every primary entry in the database was
+            # interesting.
+            found_interesting_in_primary = False
+            all_interesting_in_primary_were_exact = True
+
+            for i, existing in enumerate(corpus):
+                if i >= primary_corpus_size and found_interesting_in_primary:
+                    break
                 data = self.cached_test_function(existing, extend=BUFFER_SIZE)
                 if data.status != Status.INTERESTING:
                     self.settings.database.delete(self.database_key, existing)
                     self.settings.database.delete(self.secondary_key, existing)
+                else:
+                    if i < primary_corpus_size:
+                        found_interesting_in_primary = True
+                        assert not isinstance(data, _Overrun)
+                        if existing != data.buffer:
+                            all_interesting_in_primary_were_exact = False
+                    if not self.settings.report_multiple_bugs:
+                        break
+            if found_interesting_in_primary:
+                if all_interesting_in_primary_were_exact:
+                    self.reused_previously_shrunk_test_case = True
 
             # Because self.database is not None (because self.has_existing_examples())
             # and self.database_key is not None (because we fetched using it above),
@@ -1241,6 +1252,11 @@ class ConjectureRunner:
         self._switch_to_hypothesis_provider = True
         with self._log_phase_statistics("reuse"):
             self.reuse_existing_examples()
+        # Fast path for development: If the database gave us interesting
+        # examples from the previously stored primary key, don't try
+        # shrinking it again as it's unlikely to work.
+        if self.reused_previously_shrunk_test_case:
+            self.exit_with(ExitReason.finished)
         # ...but we should use the supplied provider when generating...
         self._switch_to_hypothesis_provider = False
         with self._log_phase_statistics("generate"):
@@ -1259,7 +1275,7 @@ class ConjectureRunner:
 
     def new_conjecture_data_ir(
         self,
-        ir_tree_prefix: list[IRNode],
+        ir_tree_prefix: Sequence[IRNode],
         *,
         observer: Optional[DataObserver] = None,
         max_length: Optional[int] = None,
@@ -1272,7 +1288,11 @@ class ConjectureRunner:
             observer = DataObserver()
 
         return ConjectureData.for_ir_tree(
-            ir_tree_prefix, observer=observer, provider=provider, max_length=max_length
+            ir_tree_prefix,
+            observer=observer,
+            provider=provider,
+            max_length=max_length,
+            random=self.random,
         )
 
     def new_conjecture_data(
@@ -1488,15 +1508,17 @@ class ConjectureRunner:
             self.__data_cache[buffer] = result
         return result
 
-    def passing_buffers(self, prefix: bytes = b"") -> frozenset[bytes]:
-        """Return a collection of bytestrings which cause the test to pass.
-
+    def passing_choice_sequences(
+        self, prefix: Sequence[IRNode] = ()
+    ) -> frozenset[bytes]:
+        """Return a collection of choice sequence nodes which cause the test to pass.
         Optionally restrict this by a certain prefix, which is useful for explain mode.
         """
         return frozenset(
-            buf
-            for buf in self.__data_cache
-            if buf.startswith(prefix) and self.__data_cache[buf].status == Status.VALID
+            result.examples.ir_tree_nodes
+            for key in self.__data_cache_ir
+            if (result := self.__data_cache_ir[key]).status is Status.VALID
+            and startswith(result.examples.ir_tree_nodes, prefix)
         )
 
 

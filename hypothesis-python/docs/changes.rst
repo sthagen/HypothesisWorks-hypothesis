@@ -18,6 +18,47 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.118.5:
+
+--------------------
+6.118.5 - 2024-11-10
+--------------------
+
+This patch avoids computing some string representations we won't need,
+giving a small speedup (part of :issue:`4139`).
+
+.. _v6.118.4:
+
+--------------------
+6.118.4 - 2024-11-10
+--------------------
+
+This patch migrates the optimisation algorithm for :ref:`targeted property-based testing <targeted-search>` to our IR layer (:issue:`3921`). This should result in moderately different (and hopefully improved) exploration behavior in tests which use :func:`hypothesis.target`.
+
+.. _v6.118.3:
+
+--------------------
+6.118.3 - 2024-11-10
+--------------------
+
+This patch adds more type hints to internal Hypothesis code.
+
+.. _v6.118.2:
+
+--------------------
+6.118.2 - 2024-11-09
+--------------------
+
+This patch migrates the :obj:`~hypothesis.Phase.explain` :ref:`phase <phases>` to our IR layer (:issue:`3921`). This should improve both its speed and precision.
+
+.. _v6.118.1:
+
+--------------------
+6.118.1 - 2024-11-09
+--------------------
+
+This patch updates some internals around how we determine an input is too large to finish generating.
+
 .. _v6.118.0:
 
 --------------------

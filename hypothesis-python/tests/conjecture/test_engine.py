@@ -29,9 +29,16 @@ from hypothesis.database import ExampleDatabase, InMemoryExampleDatabase
 from hypothesis.errors import FailedHealthCheck, FlakyStrategyDefinition
 from hypothesis.internal.compat import PYPY, bit_count, int_from_bytes
 from hypothesis.internal.conjecture import engine as engine_module
-from hypothesis.internal.conjecture.data import ConjectureData, IRNode, Overrun, Status
+from hypothesis.internal.conjecture.data import (
+    ConjectureData,
+    IRNode,
+    Overrun,
+    Status,
+    ir_size_nodes,
+)
 from hypothesis.internal.conjecture.datatree import compute_max_children
 from hypothesis.internal.conjecture.engine import (
+    BUFFER_SIZE_IR,
     MIN_TEST_CALLS,
     ConjectureRunner,
     ExitReason,
@@ -487,6 +494,7 @@ def test_can_shrink_variable_string_draws():
 def test_variable_size_string_increasing():
     # coverage test for min_size increasing during shrinking (because the test
     # function inverts n).
+    # ...except this currently overruns instead and misses that check.
     @st.composite
     def strategy(draw):
         n = 10 - draw(st.integers(0, 10))
@@ -534,7 +542,7 @@ def test_debug_data(capsys):
     runner.run()
 
     out, _ = capsys.readouterr()
-    assert re.match("\\d+ bytes \\[.*\\] -> ", out)
+    assert re.match("\\d+ nodes \\[.*\\] -> ", out)
     assert "INTERESTING" in out
 
 
@@ -1519,6 +1527,19 @@ def test_does_not_cache_extended_prefix_if_overrun():
         assert d2.status == Status.VALID
 
 
+def test_draw_bits_partly_from_prefix_and_partly_random():
+    # a draw_bits call which straddles the end of our prefix has a slightly
+    # different code branch.
+    def test(data):
+        # float consumes draw_bits(64)
+        data.draw_float()
+
+    with deterministic_PRNG():
+        runner = ConjectureRunner(test, settings=TEST_SETTINGS)
+        d = runner.cached_test_function(bytes(10), extend=100)
+        assert d.status == Status.VALID
+
+
 def test_can_be_set_to_ignore_limits():
     def test(data):
         data.draw_bytes(1, 1)
@@ -1589,6 +1610,34 @@ def test_cache_ignores_was_forced(forced_first, node):
     assert runner.call_count == 1
 
 
+@given(ir_nodes(was_forced=False))
+def test_overruns_with_extend_are_not_cached(node):
+    assume(compute_max_children(node.ir_type, node.kwargs) > 100)
+
+    def test(cd):
+        _draw(cd, node)
+        _draw(cd, node)
+
+    runner = ConjectureRunner(test)
+    assert runner.call_count == 0
+
+    data = runner.cached_test_function_ir([node])
+    assert runner.call_count == 1
+    assert data.status is Status.OVERRUN
+
+    # cache hit
+    data = runner.cached_test_function_ir([node])
+    assert runner.call_count == 1
+    assert data.status is Status.OVERRUN
+
+    # cache miss
+    data = runner.cached_test_function_ir(
+        [node], extend=BUFFER_SIZE_IR - ir_size_nodes([node])
+    )
+    assert runner.call_count == 2
+    assert data.status is Status.VALID
+
+
 def test_simulate_to_evicted_data(monkeypatch):
     # test that we do not rely on the false invariant that correctly simulating
     # a data to a result means we have that result in the cache, due to e.g.
@@ -1642,3 +1691,72 @@ def test_mildly_complicated_strategies(strategy, condition):
     # covered by shrinking any mildly compliated strategy and aren't worth
     # testing explicitly for. This covers those.
     minimal(strategy, condition)
+
+
+def test_does_not_shrink_if_replaying_from_database():
+    db = InMemoryExampleDatabase()
+    key = b"foo"
+
+    def f(data):
+        if data.draw_integer(0, 255) == 123:
+            data.mark_interesting()
+
+    runner = ConjectureRunner(f, settings=settings(database=db), database_key=key)
+    b = bytes([123])
+    runner.save_buffer(b)
+    runner.shrink_interesting_examples = None
+    runner.run()
+    (last_data,) = runner.interesting_examples.values()
+    assert last_data.buffer == b
+
+
+def test_does_shrink_if_replaying_inexact_from_database():
+    db = InMemoryExampleDatabase()
+    key = b"foo"
+
+    def f(data):
+        data.draw_integer(0, 255)
+        data.mark_interesting()
+
+    runner = ConjectureRunner(f, settings=settings(database=db), database_key=key)
+    b = bytes([123, 2])
+    runner.save_buffer(b)
+    runner.run()
+    (last_data,) = runner.interesting_examples.values()
+    assert last_data.buffer == bytes([0])
+
+
+def test_stops_if_hits_interesting_early_and_only_want_one_bug():
+    db = InMemoryExampleDatabase()
+    key = b"foo"
+
+    def f(data):
+        data.draw_integer(0, 255)
+        data.mark_interesting()
+
+    runner = ConjectureRunner(
+        f, settings=settings(database=db, report_multiple_bugs=False), database_key=key
+    )
+    for i in range(256):
+        runner.save_buffer(bytes([i]))
+    runner.run()
+    assert runner.call_count == 1
+
+
+def test_skips_secondary_if_interesting_is_found():
+    db = InMemoryExampleDatabase()
+    key = b"foo"
+
+    def f(data):
+        data.draw_integer(0, 255)
+        data.mark_interesting()
+
+    runner = ConjectureRunner(
+        f,
+        settings=settings(max_examples=1000, database=db, report_multiple_bugs=True),
+        database_key=key,
+    )
+    for i in range(256):
+        db.save(runner.database_key if i < 10 else runner.secondary_key, bytes([i]))
+    runner.reuse_existing_examples()
+    assert runner.call_count == 10
