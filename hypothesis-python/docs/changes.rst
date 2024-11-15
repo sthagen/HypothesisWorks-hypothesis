@@ -18,6 +18,30 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.119.1:
+
+--------------------
+6.119.1 - 2024-11-15
+--------------------
+
+This patch migrates some more internals (around generating novel inputs) to the IR layer (:issue:`3921`).
+
+.. _v6.119.0:
+
+--------------------
+6.119.0 - 2024-11-15
+--------------------
+
+This release improves Hypothesis' handling of ExceptionGroup - it's now able to detect marker detections if they're inside a  group and attempts to resolve them. Note that this handling is still a work in progress and might not handle edge cases optimally. Please open issues if you encounter any problems or unexpected behavior with it.
+
+.. _v6.118.9:
+
+--------------------
+6.118.9 - 2024-11-15
+--------------------
+
+Internal refactorings in preparation for upcoming changes.
+
 .. _v6.118.8:
 
 --------------------
