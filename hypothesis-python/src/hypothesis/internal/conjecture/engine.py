@@ -434,6 +434,12 @@ class ConjectureRunner:
         else:
             trial_data.freeze()
             key = self._cache_key_ir(data=trial_data)
+            if trial_data.status is Status.OVERRUN:
+                # if we simulated to an overrun, then we our result is certainly
+                # an overrun; no need to consult the cache. (and we store this result
+                # for simulation-less lookup later).
+                self.__data_cache_ir[key] = Overrun
+                return Overrun
             try:
                 return self.__data_cache_ir[key]
             except KeyError:
@@ -779,9 +785,9 @@ class ConjectureRunner:
         if data.status == Status.INTERESTING:
             status = f"{status} ({data.interesting_origin!r})"
 
-        nodes = data.ir_nodes
         self.debug(
-            f"{len(nodes)} nodes {[n.value for n in nodes]} -> {status}, {data.output}"
+            f"{len(data.choices)} choices {data.choices} -> {status}"
+            f"{', ' + data.output if data.output else ''}"
         )
 
     def run(self) -> None:
@@ -1369,7 +1375,7 @@ class ConjectureRunner:
                 ),
                 key=lambda kv: (sort_key(kv[1].buffer), sort_key(repr(kv[0]))),
             )
-            self.debug(f"Shrinking {target!r}: {[n.value for n in example.ir_nodes]}")
+            self.debug(f"Shrinking {target!r}: {data.choices}")
 
             if not self.settings.report_multiple_bugs:
                 # If multi-bug reporting is disabled, we shrink our currently-minimal
@@ -1446,7 +1452,7 @@ class ConjectureRunner:
         buffer: Union[bytes, bytearray],
         *,
         extend: int = 0,
-    ) -> Union[ConjectureResult, _Overrun]:
+    ) -> Union[ConjectureResult, _Overrun]:  # pragma: no cover # removing function soon
         """Checks the tree to see if we've tested this buffer, and returns the
         previous result if we have.
 
