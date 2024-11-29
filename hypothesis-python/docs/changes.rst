@@ -18,6 +18,22 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.121.2:
+
+--------------------
+6.121.2 - 2024-11-29
+--------------------
+
+This patch updates our autoformatting tools, improving our code style without any API changes.
+
+.. _v6.121.1:
+
+--------------------
+6.121.1 - 2024-11-29
+--------------------
+
+This release brings back the old representation of :class:`hypothesis.stateful.Bundle`, reverting most changes of `PR #4124 <https://github.com/HypothesisWorks/hypothesis/pull/4124>`_.
+
 .. _v6.121.0:
 
 --------------------
