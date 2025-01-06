@@ -518,3 +518,43 @@ def test_redistribute_integer_pairs_with_forced_node():
     # shrinking. Since the second draw is forced, this isn't possible to shrink
     # with just this pass.
     assert shrinker.choices == (15, 10)
+
+
+@pytest.mark.parametrize("n", [10, 50, 100, 200])
+def test_can_quickly_shrink_to_trivial_collection(n):
+    @shrinking_from(ir(b"\x01" * n))
+    def shrinker(data: ConjectureData):
+        b = data.draw_bytes()
+        if len(b) >= n:
+            data.mark_interesting()
+
+    shrinker.fixate_shrink_passes(["minimize_individual_nodes"])
+    assert shrinker.choices == (b"\x00" * n,)
+    assert shrinker.calls < 10
+
+
+def test_alternative_shrinking_will_lower_to_alternate_value():
+    # We want to reject the first integer value we see when shrinking
+    # this alternative, because it will be the result of transmuting the
+    # bytes value, and we want to ensure that we can find other values
+    # there when we detect the shape change.
+    seen_int = None
+
+    @shrinking_from(ir(1, b"hello world"))
+    def shrinker(data: ConjectureData):
+        nonlocal seen_int
+        i = data.draw_integer(min_value=0, max_value=1)
+        if i == 1:
+            if data.draw_bytes():
+                data.mark_interesting()
+        else:
+            n = data.draw_integer(0, 100)
+            if n == 0:
+                return
+            if seen_int is None:
+                seen_int = n
+            elif n != seen_int:
+                data.mark_interesting()
+
+    shrinker.initial_coarse_reduction()
+    assert shrinker.choices[0] == 0
