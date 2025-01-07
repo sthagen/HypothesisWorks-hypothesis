@@ -20,9 +20,16 @@ from hypothesis.internal.conjecture.shrinker import (
     StopShrinking,
     node_program,
 )
+from hypothesis.internal.conjecture.shrinking.common import Shrinker as ShrinkerPass
 from hypothesis.internal.conjecture.utils import Sampler
 
-from tests.conjecture.common import SOME_LABEL, ir, run_to_nodes, shrinking_from
+from tests.conjecture.common import (
+    SOME_LABEL,
+    interesting_origin,
+    ir,
+    run_to_nodes,
+    shrinking_from,
+)
 
 
 @pytest.mark.parametrize("n", [1, 5, 8, 15])
@@ -314,11 +321,11 @@ def test_zig_zags_quickly():
         if m == 0 or n == 0:
             data.mark_invalid()
         if abs(m - n) <= 1:
-            data.mark_interesting(0)
+            data.mark_interesting(interesting_origin(0))
         # Two different interesting origins for avoiding slipping in the
         # shrinker.
         if abs(m - n) <= 10:
-            data.mark_interesting(1)
+            data.mark_interesting(interesting_origin(1))
 
     shrinker.fixate_shrink_passes(["minimize_individual_nodes"])
     assert shrinker.engine.valid_examples <= 100
@@ -558,3 +565,17 @@ def test_alternative_shrinking_will_lower_to_alternate_value():
 
     shrinker.initial_coarse_reduction()
     assert shrinker.choices[0] == 0
+
+
+class BadShrinker(ShrinkerPass):
+    """
+    A shrinker that really doesn't do anything at all. This is mostly a covering
+    test for the shrinker interface methods.
+    """
+
+    def run_step(self):
+        return
+
+
+def test_silly_shrinker_subclass():
+    assert BadShrinker.shrink(10, lambda _: True) == 10
