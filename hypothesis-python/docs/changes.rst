@@ -18,6 +18,22 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.123.11:
+
+---------------------
+6.123.11 - 2025-01-09
+---------------------
+
+Internal code refactoring.
+
+.. _v6.123.10:
+
+---------------------
+6.123.10 - 2025-01-09
+---------------------
+
+Fixes a bug caused by :ref:`alternative backends <alternative-backends>` raising ``hypothesis.errors.BackendCannotProceed`` in certain cases.
+
 .. _v6.123.9:
 
 --------------------
