@@ -18,6 +18,22 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.123.15:
+
+---------------------
+6.123.15 - 2025-01-11
+---------------------
+
+Improves one of our shrinking passes for integers which require a constant relative difference to trigger the bug.
+
+.. _v6.123.14:
+
+---------------------
+6.123.14 - 2025-01-11
+---------------------
+
+Avoid realizing symbolic values from :ref:`alternative-backends` when :obj:`~hypothesis.settings.verbosity` is ``verbose`` or higher.
+
 .. _v6.123.13:
 
 ---------------------
