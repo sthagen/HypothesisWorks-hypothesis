@@ -31,7 +31,7 @@ from tests.conjecture.common import (
     float_kw,
     interesting_origin,
     ir,
-    ir_nodes,
+    nodes,
     run_to_nodes,
     shrinking_from,
 )
@@ -585,7 +585,7 @@ def test_silly_shrinker_subclass():
     assert BadShrinker.shrink(10, lambda _: True) == 10
 
 
-numeric_nodes = ir_nodes(ir_types=["integer", "float"])
+numeric_nodes = nodes(ir_types=["integer", "float"])
 
 
 @given(numeric_nodes, numeric_nodes, st.integers() | st.floats(allow_nan=False))
@@ -614,14 +614,6 @@ def test_redistribute_numeric_pairs(node1, node2, stop):
         + compute_max_children(node2.ir_type, node2.kwargs)
         > 2
     )
-    # TODO_IR: relax this restriction once choice_permitted isn't restricted by
-    # buffer practicalities like "can only generate 128 bits from min_value or
-    # shrink_towards".
-    assume(abs(node1.value) <= 2**64 and abs(node2.value) <= 2**64)
-    if node1.ir_type == "integer":
-        assume(abs(node1.kwargs["shrink_towards"]) <= 2**64)
-    if node2.ir_type == "integer":
-        assume(abs(node2.kwargs["shrink_towards"]) <= 2**64)
 
     @shrinking_from([node1.value, node2.value])
     def shrinker(data: ConjectureData):
