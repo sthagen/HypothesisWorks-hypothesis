@@ -24,7 +24,7 @@ import attr
 
 from hypothesis import HealthCheck, Phase, Verbosity, settings as Settings
 from hypothesis._settings import local_settings
-from hypothesis.database import ExampleDatabase, ir_from_bytes, ir_to_bytes
+from hypothesis.database import ExampleDatabase, choices_from_bytes, choices_to_bytes
 from hypothesis.errors import (
     BackendCannotProceed,
     FlakyReplay,
@@ -38,18 +38,15 @@ from hypothesis.internal.conjecture.choice import (
     ChoiceKeyT,
     ChoiceKwargsT,
     ChoiceT,
+    ChoiceTemplate,
     choices_key,
 )
 from hypothesis.internal.conjecture.data import (
-    AVAILABLE_PROVIDERS,
     ConjectureData,
     ConjectureResult,
     DataObserver,
-    HypothesisProvider,
     IRNode,
-    NodeTemplate,
     Overrun,
-    PrimitiveProvider,
     Status,
     _Overrun,
 )
@@ -63,7 +60,12 @@ from hypothesis.internal.conjecture.junkdrawer import (
     startswith,
 )
 from hypothesis.internal.conjecture.pareto import NO_SCORE, ParetoFront, ParetoOptimiser
-from hypothesis.internal.conjecture.shrinker import Shrinker, sort_key
+from hypothesis.internal.conjecture.providers import (
+    AVAILABLE_PROVIDERS,
+    HypothesisProvider,
+    PrimitiveProvider,
+)
+from hypothesis.internal.conjecture.shrinker import Shrinker, ShrinkPredicateT, sort_key
 from hypothesis.internal.escalation import InterestingOrigin
 from hypothesis.internal.healthcheck import fail_health_check
 from hypothesis.reporting import base_report, report
@@ -193,16 +195,22 @@ StatisticsDict = TypedDict(
 )
 
 
-def choice_count(choices: Sequence[Union[ChoiceT, NodeTemplate]]) -> Optional[int]:
+def choice_count(choices: Sequence[Union[ChoiceT, ChoiceTemplate]]) -> Optional[int]:
     count = 0
     for choice in choices:
-        if isinstance(choice, NodeTemplate):
+        if isinstance(choice, ChoiceTemplate):
             if choice.count is None:
                 return None
             count += choice.count
         else:
             count += 1
     return count
+
+
+class DiscardObserver(DataObserver):
+    @override
+    def kill_branch(self) -> NoReturn:
+        raise ContainsDiscard
 
 
 class ConjectureRunner:
@@ -222,8 +230,8 @@ class ConjectureRunner:
         self.call_count: int = 0
         self.misaligned_count: int = 0
         self.valid_examples: int = 0
-        self.invalid_examples = 0
-        self.overrun_examples = 0
+        self.invalid_examples: int = 0
+        self.overrun_examples: int = 0
         self.random: Random = random or Random(getrandbits(128))
         self.database_key: Optional[bytes] = database_key
         self.ignore_limits: bool = ignore_limits
@@ -235,7 +243,9 @@ class ConjectureRunner:
         self.stats_per_test_case: list[CallStats] = []
 
         # At runtime, the keys are only ever type `InterestingOrigin`, but can be `None` during tests.
-        self.interesting_examples: dict[InterestingOrigin, ConjectureResult] = {}
+        self.interesting_examples: dict[
+            Optional[InterestingOrigin], ConjectureResult
+        ] = {}
         # We use call_count because there may be few possible valid_examples.
         self.first_bug_found_at: Optional[int] = None
         self.last_bug_found_at: Optional[int] = None
@@ -273,16 +283,17 @@ class ConjectureRunner:
             tuple[ChoiceKeyT, ...], Union[ConjectureResult, _Overrun]
         ](CACHE_SIZE)
 
-        self.reused_previously_shrunk_test_case = False
+        self.reused_previously_shrunk_test_case: bool = False
 
         self.__pending_call_explanation: Optional[str] = None
         self._switch_to_hypothesis_provider: bool = False
 
-        self.__failed_realize_count = 0
-        self._verified_by = None  # note unsound verification by alt backends
+        self.__failed_realize_count: int = 0
+        # note unsound verification by alt backends
+        self._verified_by: Optional[str] = None
 
     @property
-    def using_hypothesis_backend(self):
+    def using_hypothesis_backend(self) -> bool:
         return (
             self.settings.backend == "hypothesis" or self._switch_to_hypothesis_provider
         )
@@ -352,7 +363,7 @@ class ConjectureRunner:
 
     def cached_test_function_ir(
         self,
-        choices: Sequence[Union[ChoiceT, NodeTemplate]],
+        choices: Sequence[Union[ChoiceT, ChoiceTemplate]],
         *,
         error_on_discard: bool = False,
         extend: Union[int, Literal["full"]] = 0,
@@ -367,9 +378,9 @@ class ConjectureRunner:
         """
         # node templates represent a not-yet-filled hole and therefore cannot
         # be cached or retrieved from the cache.
-        if not any(isinstance(choice, NodeTemplate) for choice in choices):
+        if not any(isinstance(choice, ChoiceTemplate) for choice in choices):
             # this type cast is validated by the isinstance check above (ie, there
-            # are no NodeTemplate elements).
+            # are no ChoiceTemplate elements).
             choices = cast(Sequence[ChoiceT], choices)
             key = self._cache_key(choices)
             try:
@@ -394,12 +405,6 @@ class ConjectureRunner:
         # TreeRecordingObserver tracking those calls.
         trial_observer: Optional[DataObserver] = DataObserver()
         if error_on_discard:
-
-            class DiscardObserver(DataObserver):
-                @override
-                def kill_branch(self) -> NoReturn:
-                    raise ContainsDiscard
-
             trial_observer = DiscardObserver()
 
         try:
@@ -556,9 +561,7 @@ class ConjectureRunner:
                 # replay this failure on the hypothesis backend to ensure it still
                 # finds a failure. otherwise, it is flaky.
                 initial_origin = data.interesting_origin
-                initial_traceback = getattr(
-                    data.extra_information, "_expected_traceback", None
-                )
+                initial_traceback = data.expected_traceback
                 data = ConjectureData.for_choices(data.choices)
                 self.__stoppable_test_function(data)
                 data.freeze()
@@ -587,7 +590,7 @@ class ConjectureRunner:
             key = data.interesting_origin
             changed = False
             try:
-                existing = self.interesting_examples[key]  # type: ignore
+                existing = self.interesting_examples[key]
             except KeyError:
                 changed = True
                 self.last_bug_found_at = self.call_count
@@ -596,7 +599,7 @@ class ConjectureRunner:
             else:
                 if sort_key(data.nodes) < sort_key(existing.nodes):
                     self.shrinks += 1
-                    self.downgrade_buffer(ir_to_bytes(existing.choices))
+                    self.downgrade_choices(existing.choices)
                     self.__data_cache.unpin(self._cache_key(existing.choices))
                     changed = True
 
@@ -646,7 +649,7 @@ class ConjectureRunner:
         self.record_for_health_check(data)
 
     def on_pareto_evict(self, data: ConjectureData) -> None:
-        self.settings.database.delete(self.pareto_key, ir_to_bytes(data.choices))
+        self.settings.database.delete(self.pareto_key, choices_to_bytes(data.choices))
 
     def generate_novel_prefix(self) -> tuple[ChoiceT, ...]:
         """Uses the tree to proactively generate a starting sequence of bytes
@@ -737,9 +740,10 @@ class ConjectureRunner:
             key = self.sub_key(sub_key)
             if key is None:
                 return
-            self.settings.database.save(key, ir_to_bytes(choices))
+            self.settings.database.save(key, choices_to_bytes(choices))
 
-    def downgrade_buffer(self, buffer: Union[bytes, bytearray]) -> None:
+    def downgrade_choices(self, choices: Sequence[ChoiceT]) -> None:
+        buffer = choices_to_bytes(choices)
         if self.settings.database is not None and self.database_key is not None:
             self.settings.database.move(self.database_key, self.secondary_key, buffer)
 
@@ -853,7 +857,7 @@ class ConjectureRunner:
             for i, existing in enumerate(corpus):
                 if i >= primary_corpus_size and found_interesting_in_primary:
                     break
-                choices = ir_from_bytes(existing)
+                choices = choices_from_bytes(existing)
                 if choices is None:
                     # clear out any keys which fail deserialization
                     self.settings.database.delete(self.database_key, existing)
@@ -889,7 +893,7 @@ class ConjectureRunner:
                 pareto_corpus.sort(key=shortlex)
 
                 for existing in pareto_corpus:
-                    choices = ir_from_bytes(existing)
+                    choices = choices_from_bytes(existing)
                     if choices is None:
                         self.settings.database.delete(self.pareto_key, existing)
                         continue
@@ -956,7 +960,7 @@ class ConjectureRunner:
 
         assert self.should_generate_more()
         zero_data = self.cached_test_function_ir(
-            (NodeTemplate("simplest", count=None),)
+            (ChoiceTemplate("simplest", count=None),)
         )
         if zero_data.status > Status.OVERRUN:
             assert isinstance(zero_data, ConjectureResult)
@@ -1050,7 +1054,7 @@ class ConjectureRunner:
                 and consecutive_zero_extend_is_invalid < 5
             ):
                 minimal_example = self.cached_test_function_ir(
-                    prefix + (NodeTemplate("simplest", count=None),)
+                    prefix + (ChoiceTemplate("simplest", count=None),)
                 )
 
                 if minimal_example.status < Status.VALID:
@@ -1294,7 +1298,7 @@ class ConjectureRunner:
 
     def new_conjecture_data_ir(
         self,
-        prefix: Sequence[Union[ChoiceT, NodeTemplate]],
+        prefix: Sequence[Union[ChoiceT, ChoiceTemplate]],
         *,
         observer: Optional[DataObserver] = None,
         max_choices: Optional[int] = None,
@@ -1355,9 +1359,10 @@ class ConjectureRunner:
                 self.shrink(example, lambda d: d.status == Status.INTERESTING)
                 return
 
-            def predicate(d: ConjectureData) -> bool:
+            def predicate(d: Union[ConjectureResult, _Overrun]) -> bool:
                 if d.status < Status.INTERESTING:
                     return False
+                d = cast(ConjectureResult, d)
                 return d.interesting_origin == target
 
             self.shrink(example, predicate)
@@ -1377,12 +1382,13 @@ class ConjectureRunner:
                 self.settings.database.fetch(self.secondary_key), key=shortlex
             )
             for c in corpus:
-                choices = ir_from_bytes(c)
+                choices = choices_from_bytes(c)
                 if choices is None:
                     self.settings.database.delete(self.secondary_key, c)
                     continue
                 primary = {
-                    ir_to_bytes(v.choices) for v in self.interesting_examples.values()
+                    choices_to_bytes(v.choices)
+                    for v in self.interesting_examples.values()
                 }
                 cap = max(map(shortlex, primary))
 
@@ -1398,7 +1404,7 @@ class ConjectureRunner:
     def shrink(
         self,
         example: Union[ConjectureData, ConjectureResult],
-        predicate: Optional[Callable[[ConjectureData], bool]] = None,
+        predicate: Optional[ShrinkPredicateT] = None,
         allow_transition: Optional[
             Callable[[Union[ConjectureData, ConjectureResult], ConjectureData], bool]
         ] = None,
@@ -1410,7 +1416,7 @@ class ConjectureRunner:
     def new_shrinker(
         self,
         example: Union[ConjectureData, ConjectureResult],
-        predicate: Optional[Callable[[ConjectureData], bool]] = None,
+        predicate: Optional[ShrinkPredicateT] = None,
         allow_transition: Optional[
             Callable[[Union[ConjectureData, ConjectureResult], ConjectureData], bool]
         ] = None,
