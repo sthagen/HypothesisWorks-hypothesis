@@ -383,14 +383,14 @@ class Shrinker:
         if self.calls - self.calls_at_last_shrink >= self.max_stall:
             raise StopShrinking
 
-    def cached_test_function_ir(self, nodes):
+    def cached_test_function(self, nodes):
         # sometimes our shrinking passes try obviously invalid things. We handle
         # discarding them in one place here.
         for node in nodes:
             if not choice_permitted(node.value, node.kwargs):
                 return None
 
-        result = self.engine.cached_test_function_ir(
+        result = self.engine.cached_test_function(
             [n.value for n in nodes], extend=self.__extend
         )
         self.incorporate_test_data(result)
@@ -407,7 +407,7 @@ class Shrinker:
             return False
 
         previous = self.shrink_target
-        self.cached_test_function_ir(nodes)
+        self.cached_test_function(nodes)
         return previous is not self.shrink_target
 
     def incorporate_test_data(self, data):
@@ -538,7 +538,7 @@ class Shrinker:
                     replacement.append(node.value)
 
                 attempt = choices[:start] + tuple(replacement) + choices[end:]
-                result = self.engine.cached_test_function_ir(attempt, extend="full")
+                result = self.engine.cached_test_function(attempt, extend="full")
 
                 # Turns out this was a variable-length part, so grab the infix...
                 if result.status is Status.OVERRUN:
@@ -562,7 +562,7 @@ class Shrinker:
                         choices[:start] + result.choices[start:res_end] + choices[end:]
                     )
                     chunks[(start, end)].append(result.choices[start:res_end])
-                    result = self.engine.cached_test_function_ir(attempt)
+                    result = self.engine.cached_test_function(attempt)
 
                     if result.status is Status.OVERRUN:
                         continue  # pragma: no cover  # flakily covered
@@ -601,7 +601,7 @@ class Shrinker:
                 new_choices.extend(self.random.choice(ls))
                 prev_end = end
 
-            result = self.engine.cached_test_function_ir(new_choices)
+            result = self.engine.cached_test_function(new_choices)
 
             # This *can't* be a shrink because none of the components were.
             assert shrink_target is self.shrink_target
@@ -635,10 +635,11 @@ class Shrinker:
                 node_program("X" * 1),
                 "pass_to_descendant",
                 "reorder_examples",
-                "minimize_duplicated_nodes",
-                "minimize_individual_nodes",
+                "minimize_duplicated_choices",
+                "minimize_individual_choices",
                 "redistribute_numeric_pairs",
                 "lower_integers_together",
+                "lower_duplicated_characters",
             ]
         )
 
@@ -697,7 +698,7 @@ class Shrinker:
                 # shape changes, as measured by either changing the number of subsequent
                 # nodes, or changing the nodes in such a way as to cause one of the
                 # previous values to no longer be valid in its position.
-                zero_attempt = self.cached_test_function_ir(
+                zero_attempt = self.cached_test_function(
                     nodes[:i] + (nodes[i].copy(with_value=0),) + nodes[i + 1 :]
                 )
                 if (
@@ -730,7 +731,7 @@ class Shrinker:
         while rerandomising and attempting to repair any subsequent
         changes to the shape of the test case that this causes."""
         nodes = self.shrink_target.nodes
-        initial_attempt = self.cached_test_function_ir(
+        initial_attempt = self.cached_test_function(
             nodes[:i] + (nodes[i].copy(with_value=v),) + nodes[i + 1 :]
         )
         if initial_attempt is self.shrink_target:
@@ -740,7 +741,7 @@ class Shrinker:
         initial = self.shrink_target
         examples = self.examples_starting_at[i]
         for _ in range(3):
-            random_attempt = self.engine.cached_test_function_ir(
+            random_attempt = self.engine.cached_test_function(
                 [n.value for n in prefix], extend=len(nodes)
             )
             if random_attempt.status < Status.VALID:
@@ -1087,7 +1088,7 @@ class Shrinker:
             [(node.index, node.index + 1, [node.copy(with_value=n)]) for node in nodes],
         )
 
-        attempt = self.cached_test_function_ir(initial_attempt)
+        attempt = self.cached_test_function(initial_attempt)
 
         if attempt is None:
             return False
@@ -1259,8 +1260,8 @@ class Shrinker:
         return list(duplicates.values())
 
     @defines_shrink_pass()
-    def minimize_duplicated_nodes(self, chooser):
-        """Find blocks that have been duplicated in multiple places and attempt
+    def minimize_duplicated_choices(self, chooser):
+        """Find choices that have been duplicated in multiple places and attempt
         to minimize all of the duplicates simultaneously.
 
         This lets us handle cases where two values can't be shrunk
@@ -1387,6 +1388,68 @@ class Shrinker:
         find_integer(lambda n: consider(shrink_towards - n))
         find_integer(lambda n: consider(n - shrink_towards))
 
+    @defines_shrink_pass()
+    def lower_duplicated_characters(self, chooser):
+        """
+        Select two string choices no more than 4 choices apart and simultaneously
+        lower characters which appear in both strings. This helps cases where the
+        same character must appear in two strings, but the actual value of the
+        character is not relevant.
+
+        This shrinking pass currently only tries lowering *all* instances of the
+        duplicated character in both strings. So for instance, given two choices:
+
+            "bbac"
+            "abbb"
+
+        we would try lowering all five of the b characters simultaneously. This
+        may fail to shrink some cases where only certain character indices are
+        correlated, for instance if only the b at index 1 could be lowered
+        simultaneously and the rest did in fact actually have to be a `b`.
+
+        It would be nice to try shrinking that case as well, but we would need good
+        safeguards because it could get very expensive to try all combinations.
+        I expect lowering all duplicates to handle most cases in the meantime.
+        """
+        node1 = chooser.choose(
+            self.nodes, lambda n: n.type == "string" and not n.trivial
+        )
+
+        # limit search to up to 4 choices ahead, to avoid quadratic behavior
+        node2 = self.nodes[
+            chooser.choose(
+                range(node1.index + 1, min(len(self.nodes), node1.index + 1 + 4)),
+                lambda i: self.nodes[i].type == "string" and not self.nodes[i].trivial
+                # select nodes which have at least one of the same character present
+                and set(node1.value) & set(self.nodes[i].value),
+            )
+        ]
+
+        duplicated_characters = set(node1.value) & set(node2.value)
+        # deterministic ordering
+        char = chooser.choose(sorted(duplicated_characters))
+        intervals = node1.kwargs["intervals"]
+
+        def copy_node(node, n):
+            # replace all duplicate characters in each string. This might miss
+            # some shrinks compared to only replacing some, but trying all possible
+            # combinations of indices could get expensive if done without some
+            # thought.
+            return node.copy(
+                with_value=node.value.replace(char, intervals.char_in_shrink_order(n))
+            )
+
+        Integer.shrink(
+            intervals.index_from_char_in_shrink_order(char),
+            lambda n: self.consider_new_nodes(
+                self.nodes[: node1.index]
+                + (copy_node(node1, n),)
+                + self.nodes[node1.index + 1 : node2.index]
+                + (copy_node(node2, n),)
+                + self.nodes[node2.index + 1 :]
+            ),
+        )
+
     def minimize_nodes(self, nodes):
         choice_type = nodes[0].type
         value = nodes[0].value
@@ -1469,7 +1532,7 @@ class Shrinker:
             ]
         )
         suffix = nodes[ex.end :]
-        attempt = self.cached_test_function_ir(prefix + replacement + suffix)
+        attempt = self.cached_test_function(prefix + replacement + suffix)
 
         if self.shrink_target is not prev:
             return
@@ -1480,8 +1543,8 @@ class Shrinker:
             self.consider_new_nodes(prefix + new_replacement + suffix)
 
     @defines_shrink_pass()
-    def minimize_individual_nodes(self, chooser):
-        """Attempt to minimize each node in sequence.
+    def minimize_individual_choices(self, chooser):
+        """Attempt to minimize each choice in sequence.
 
         This is the pass that ensures that e.g. each integer we draw is a
         minimum value. So it's the part that guarantees that if we e.g. do
@@ -1491,7 +1554,7 @@ class Shrinker:
 
         then in our shrunk example, x = 10 rather than say 97.
 
-        If we are unsuccessful at minimizing a node of interest we then
+        If we are unsuccessful at minimizing a choice of interest we then
         check if that's because it's changing the size of the test case and,
         if so, we also make an attempt to delete parts of the test case to
         see if that fixes it.
@@ -1533,7 +1596,7 @@ class Shrinker:
             + (node.copy(with_value=node.value - 1),)
             + self.nodes[node.index + 1 :]
         )
-        attempt = self.cached_test_function_ir(lowered)
+        attempt = self.cached_test_function(lowered)
         if (
             attempt is None
             or attempt.status < Status.VALID

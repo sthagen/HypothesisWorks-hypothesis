@@ -18,6 +18,50 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.127.9:
+
+--------------------
+6.127.9 - 2025-03-06
+--------------------
+
+We now provide a better string representation for :func:`~hypothesis.strategies.one_of` strategies, by flattening consecutive ``|`` combinations. For instance:
+
+.. code-block:: pycon
+
+    >>> st.integers() | st.text() | st.booleans()
+    # previously: one_of(one_of(integers(), text()), booleans())
+    one_of(integers(), text(), booleans())
+
+Explicit calls to :func:`~hypothesis.strategies.one_of` remain unflattened, in order to make tracking down complicated :func:`~hypothesis.strategies.one_of` constructions easier:
+
+.. code-block:: pycon
+
+    >>> st.one_of(st.integers(), st.one_of(st.text(), st.booleans()))
+    one_of(integers(), one_of(text(), booleans()))
+
+We print ``one_of`` in reprs (rather than ``integers() | text() | ...``) for consistency with reprs containing ``.filter`` or ``.map`` calls, which uses the full ``one_of`` to avoid ambiguity.
+
+.. _v6.127.8:
+
+--------------------
+6.127.8 - 2025-03-06
+--------------------
+
+This patch improves shrinking behavior for values from :func:`~hypothesis.strategies.text` and :func:`~hypothesis.strategies.binary` which contain duplicate elements, like ``"zzzabc"``. It also improves shrinking for  bugs which require the same character to be drawn from two different :func:`~hypothesis.strategies.text` strategies to trigger.
+
+.. _v6.127.7:
+
+--------------------
+6.127.7 - 2025-03-05
+--------------------
+
+Fix a type-hinting regression from :ref:`version 6.125.1 <v6.125.1>`, where we would no longer guarantee the type of the argument to ``.filter`` predicates (:issue:`4269`).
+
+.. code-block:: python
+
+  # x was previously Unknown, but is now correctly guaranteed to be int
+  st.integers().filter(lambda x: x > 0)
+
 .. _v6.127.6:
 
 --------------------
