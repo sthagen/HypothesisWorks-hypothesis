@@ -18,6 +18,43 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.129.0:
+
+--------------------
+6.129.0 - 2025-03-11
+--------------------
+
+This release adds a ``"hypothesis-urandom"`` :ref:`backend <alternative-backends>`, which draws randomness from ``/dev/urandom`` instead of Python's PRNG. This is useful for users of `Antithesis <https://antithesis.com/>`_ who also have Hypothesis tests, allowing Antithesis mutation of ``/dev/urandom`` to drive Hypothesis generation. We expect it to be strictly slower than the default backend for everyone else.
+
+It can be enabled with ``@settings(backend="hypothesis-urandom")``.
+
+.. _v6.128.3:
+
+--------------------
+6.128.3 - 2025-03-11
+--------------------
+
+For strategies which draw make recursive draws, including :func:`~hypothesis.strategies.recursive` and :func:`~hypothesis.strategies.deferred`, we now generate examples with duplicated subtrees more often. This tends to uncover interesting behavior in tests.
+
+For instance, we might now generate a tree like this more often (though the details depend on the strategy):
+
+.. code-block:: none
+
+                 ┌─────┐
+          ┌──────┤  a  ├──────┐
+          │      └─────┘      │
+       ┌──┴──┐             ┌──┴──┐
+       │  b  │             │  a  │
+       └──┬──┘             └──┬──┘
+     ┌────┴────┐         ┌────┴────┐
+  ┌──┴──┐   ┌──┴──┐   ┌──┴──┐   ┌──┴──┐
+  │  c  │   │  d  │   │  b  │   │ ... │
+  └─────┘   └─────┘   └──┬──┘   └─────┘
+                    ┌────┴────┐
+                 ┌──┴──┐   ┌──┴──┐
+                 │  c  │   │  d  │
+                 └─────┘   └─────┘
+
 .. _v6.128.2:
 
 --------------------
