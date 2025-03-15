@@ -18,6 +18,23 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.129.2:
+
+--------------------
+6.129.2 - 2025-03-14
+--------------------
+
+Improve how the shrinker checks for unnecessary work, leading to 10% less time spent shrinking on average, with no reduction in quality.
+
+.. _v6.129.1:
+
+--------------------
+6.129.1 - 2025-03-13
+--------------------
+
+:func:`~hypothesis.strategies.randoms` no longer produces ``1.0``, matching
+the exclusive upper bound of :obj:`random.Random.random` (:issue:`4297`).
+
 .. _v6.129.0:
 
 --------------------
@@ -317,7 +334,7 @@ Improves our internal caching logic for test cases.
 6.124.1 - 2025-01-18
 --------------------
 
-:ref:`fuzz_one_input <fuzz_one_input>` is now implemented using an :ref:`alternative backend <alternative-backends>`. This brings the interpretation of the fuzzer-provided bytestring closer to the fuzzer mutations, allowing the mutations to work more reliably. We hope to use this backend functionality to improve fuzzing integration (see e.g. https://github.com/google/atheris/issues/20) in the future!
+:ref:`fuzz_one_input <fuzz_one_input>` is now implemented using an :ref:`alternative backend <alternative-backends>`. This brings the interpretation of the fuzzer-provided bytestring closer to the fuzzer mutations, allowing the mutations to work more reliably. We hope to use this backend functionality to improve fuzzing integration (e.g. `atheris issue #20 <https://github.com/google/atheris/issues/20>`__) in the future!
 
 .. _v6.124.0:
 
@@ -720,9 +737,7 @@ means that it's not possible for a server to actually be listening on port 0.
 This motivation is briefly described in the documentation for
 :func:`~hypothesis.provisional.urls`.
 
-Fixes :issue:`4157`.
-
-Thanks to @gmacon for this contribution!
+Thanks to @gmacon for fixing :issue:`4157`!
 
 .. _v6.117.0:
 
@@ -928,7 +943,7 @@ in :func:`~hypothesis.strategies.from_type`.
 6.110.1 - 2024-08-08
 --------------------
 
-Add better error message for :obj:`!~python:typing.TypeIs` types
+Add better error message for :obj:`~python:typing.TypeIs` types
 in :func:`~hypothesis.strategies.from_type`.
 
 .. _v6.110.0:
@@ -1058,7 +1073,7 @@ which is used by the provisional :func:`~hypothesis.provisional.domains` strateg
 6.108.0 - 2024-07-13
 --------------------
 
-This patch changes most Flaky errors to use an ExceptionGroup, which
+This patch changes most ``Flaky`` errors to use an :class:`ExceptionGroup`, which
 makes the representation of these errors easier to understand.
 
 .. _v6.107.0:
@@ -1176,9 +1191,7 @@ Thanks to Joshua Munn for this contribution.
 --------------------
 
 Fixes and reinstates full coverage of internal tests, which was accidentally
-disabled in :pull:`3935`.
-
-Closes :issue:`4003`.
+disabled in :pull:`3935` (:issue:`4003`).
 
 .. _v6.103.4:
 
@@ -2773,9 +2786,7 @@ strategy.  Thanks to Francesc Elies for :pull:`3602`.
 -------------------
 
 This patch fixes a bug with :func:`~hypothesis.strategies.from_type()` with ``dict[tuple[int, int], str]``
-(:issue:`3527`).
-
-    Thanks to Nick Muoh at the PyCon Sprints!
+(:issue:`3527`).  Thanks to Nick Muoh at the PyCon Sprints!
 
 .. _v6.72.2:
 
@@ -3553,8 +3564,8 @@ methods, in addition to the existing support for functions and other callables
 6.46.11 - 2022-06-02
 --------------------
 
-Mention :func:`hypothesis.strategies.timezones`
-in the documentation of :func:`hypothesis.strategies.datetimes` for completeness.
+Mention :func:`~hypothesis.strategies.timezones`
+in the documentation of :func:`~hypothesis.strategies.datetimes` for completeness.
 
 Thanks to George Macon for this addition.
 
@@ -3805,7 +3816,7 @@ Now, when using with ``pytest-xdist``, the junit report will just omit the
 
 For more details, see `this pytest issue <https://github.com/pytest-dev/pytest/issues/1126#issuecomment-484581283>`__,
 `this pytest issue <https://github.com/pytest-dev/pytest/issues/7767#issuecomment-1082436256>`__,
-and :issue:`1935`
+and :issue:`1935`.
 
 Thanks to Brandon Chinn for this bug fix!
 
@@ -3824,7 +3835,7 @@ updates our vendored `list of top-level domains <https://www.iana.org/domains/ro
 6.42.0 - 2022-04-09
 -------------------
 
-This release makes ``st.functions(pure=True)`` less noisy (:issue:`3253`),
+This release makes :func:`st.functions(pure=True) <hypothesis.strategies.functions>` less noisy (:issue:`3253`),
 and generally improves pretty-printing of functions.
 
 .. _v6.41.0:
@@ -3870,7 +3881,7 @@ Fixed :func:`~hypothesis.strategies.from_type` support for
 6.40.1 - 2022-04-01
 -------------------
 
-Fixed an internal error when ``given()`` was passed a lambda.
+Fixed an internal error when :func:`~hypothesis.given` was passed a lambda.
 
 .. _v6.40.0:
 
