@@ -18,6 +18,22 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.130.8:
+
+--------------------
+6.130.8 - 2025-04-02
+--------------------
+
+Improves the documentation of |settings.Verbosity| objects.
+
+.. _v6.130.7:
+
+--------------------
+6.130.7 - 2025-04-02
+--------------------
+
+Rename internal variables for clarity.
+
 .. _v6.130.6:
 
 --------------------
@@ -3084,7 +3100,7 @@ repr does not include all relevant details, and will unlock further improvements
 in a future version.
 
 For now, we capture calls made via :func:`~hypothesis.strategies.builds`, and via
-:ref:`SearchStrategy.map() <mapping>`.
+|strategy.map|.
 
 .. _v6.64.0:
 
