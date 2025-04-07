@@ -18,6 +18,14 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.130.9:
+
+--------------------
+6.130.9 - 2025-04-06
+--------------------
+
+When reporting the always-failing, never-passing lines from the |Phase.explain| phase, we now sort the reported lines so that local code shows up first, then third-party library code, then standard library code.
+
 .. _v6.130.8:
 
 --------------------
@@ -7080,7 +7088,7 @@ warnings rather than errors everywhere (:issue:`2130`).
 ------------------
 
 This patch fixes compatibility with Python 3.5.2 (:issue:`2334`).
-Note that :doc:`we only test the latest patch of each minor version <supported>`,
+Note that :doc:`we only test the latest patch of each minor version <compatibility>`,
 though as in this case we usually accept pull requests for older patch versions.
 
 .. _v5.4.1:
@@ -11408,8 +11416,7 @@ instances of ``int`` when passed ``long``, or vice-versa.
 -------------------
 
 This release adds :PEP:`484` type hints to Hypothesis on a provisional
-basis, using the comment-based syntax for Python 2 compatibility.  You
-can :doc:`read more about our type hints here <typing>`.
+basis, using the comment-based syntax for Python 2 compatibility.
 
 It *also* adds the ``py.typed`` marker specified in :PEP:`561`.
 After you ``pip install hypothesis``, :pypi:`mypy` 0.590 or later
