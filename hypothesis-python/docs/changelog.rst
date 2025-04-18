@@ -18,6 +18,38 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.131.3:
+
+--------------------
+6.131.3 - 2025-04-18
+--------------------
+
+Fixes a rare internal error where new code from :ref:`version 6.131.1 <v6.131.1>`
+could fail if :py:data:`sys.modules` is simultaneously modified, e.g. as a side
+effect of imports executed from another thread.  Our :ref:`thread-safety-policy`
+does not promise that this is supported, but we're happy to take reasonable
+fixes.
+
+Thanks to Tony Li for reporting and fixing this issue.
+
+.. _v6.131.2:
+
+--------------------
+6.131.2 - 2025-04-17
+--------------------
+
+The pub-sub change listening interface of the :ref:`Hypothesis database <database>` now correctly fires events for |DirectoryBasedExampleDatabase| if the directory was created after the listener was added.
+
+Also disables on emscripten the constants-extraction feature introduced in :ref:`v6.131.1`, where it caused substantial slowdown.
+
+.. _v6.131.1:
+
+--------------------
+6.131.1 - 2025-04-17
+--------------------
+
+Hypothesis now looks for constant values in the source code of your program, and sometimes uses them while generating examples. This lets Hypothesis generate interesting inputs that are specific to your program.
+
 .. _v6.131.0:
 
 --------------------
