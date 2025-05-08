@@ -850,10 +850,9 @@ class ConjectureData:
         *,
         allow_nan: bool = True,
         smallest_nonzero_magnitude: float = SMALLEST_SUBNORMAL,
-        # TODO: consider supporting these float widths at the IR level in the
-        # future.
+        # TODO: consider supporting these float widths at the choice sequence
+        # level in the future.
         # width: Literal[16, 32, 64] = 64,
-        # exclude_min and exclude_max handled higher up,
         forced: Optional[float] = None,
         observe: bool = True,
     ) -> float:
@@ -1006,12 +1005,12 @@ class ConjectureData:
             bytes: "bytes",
         }[type(choice)]
         # If we're trying to:
-        # * draw a different ir type at the same location
-        # * draw the same ir type with a different constraints, which does not permit
+        # * draw a different choice type at the same location
+        # * draw the same choice type with a different constraints, which does not permit
         #   the current value
         #
         # then we call this a misalignment, because the choice sequence has
-        # slipped from what we expected at some point. An easy misalignment is
+        # changed from what we expected at some point. An easy misalignment is
         #
         #   one_of(integers(0, 100), integers(101, 200))
         #
@@ -1100,6 +1099,7 @@ class ConjectureData:
         observe_as: Optional[str] = None,
     ) -> "Ex":
         from hypothesis.internal.observability import TESTCASE_CALLBACKS
+        from hypothesis.strategies._internal.lazy import unwrap_strategies
         from hypothesis.strategies._internal.utils import to_jsonable
 
         if self.is_find and not strategy.supports_find:
@@ -1126,19 +1126,22 @@ class ConjectureData:
         if self.depth >= MAX_DEPTH:
             self.mark_invalid("max depth exceeded")
 
+        # Jump directly to the unwrapped strategy for the label and for do_draw.
+        # This avoids adding an extra span to all lazy strategies.
+        unwrapped = unwrap_strategies(strategy)
         if label is None:
-            assert isinstance(strategy.label, int)
-            label = strategy.label
+            label = unwrapped.label
+            assert isinstance(label, int)
+
         self.start_span(label=label)
         try:
             if not at_top_level:
-                return strategy.do_draw(self)
+                return unwrapped.do_draw(self)
             assert start_time is not None
             key = observe_as or f"generate:unlabeled_{len(self.draw_times)}"
             try:
-                strategy.validate()
                 try:
-                    v = strategy.do_draw(self)
+                    v = unwrapped.do_draw(self)
                 finally:
                     # Subtract the time spent in GC to avoid overcounting, as it is
                     # accounted for at the overall example level.
