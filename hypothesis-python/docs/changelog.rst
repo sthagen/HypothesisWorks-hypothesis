@@ -18,6 +18,22 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.131.27:
+
+---------------------
+6.131.27 - 2025-05-24
+---------------------
+
+Add ``PrimitiveProvider.replay_choices`` to the :ref:`alternative backends <alternative-backends>` interface, to support warm-starting e.g. :pypi:`hypothesis-crosshair` from :pypi:`hypofuzz`.
+
+.. _v6.131.26:
+
+---------------------
+6.131.26 - 2025-05-24
+---------------------
+
+Improve |ExampleDatabase| documentation.
+
 .. _v6.131.25:
 
 ---------------------
@@ -5271,7 +5287,7 @@ to shrink towards negative values instead of positive values in some cases.
 -------------------
 
 This patch fixes rare cases where ``hypothesis write --binary-op`` could
-print :ref:`reproducing instructions <reproducing-failures>` from the internal
+print :ref:`reproducing instructions <reproducing-inputs>` from the internal
 search for an identity element.
 
 .. _v6.13.4:
