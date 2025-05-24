@@ -18,13 +18,29 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.131.25:
+
+---------------------
+6.131.25 - 2025-05-23
+---------------------
+
+Add some internal type hints.
+
+.. _v6.131.24:
+
+---------------------
+6.131.24 - 2025-05-23
+---------------------
+
+Improve |@settings| documentation.
+
 .. _v6.131.23:
 
 ---------------------
 6.131.23 - 2025-05-23
 ---------------------
 
-This patch adds ``GITLAB_CI`` to the environment variables checked when enabling the default CI :ref:`settings profile <settings_profiles>`.
+This patch adds ``GITLAB_CI`` to the environment variables checked when enabling the default CI |settings| profile.
 
 Thanks to Genevieve Mendoza for this contribution!
 
@@ -341,7 +357,7 @@ Improve the documentation for some strategies, including |st.composite| and |st.
 6.130.0 - 2025-03-21
 --------------------
 
-Nesting :func:`@given <hypothesis.given>` inside of :func:`@given <hypothesis.given>` is now a :ref:`health check <healthchecks>` failure. Nesting :func:`@given <hypothesis.given>` results in quadratic generation and shrinking behavior, and can usually be more cleanly expressed by replacing the inner function with a :func:`~hypothesis.strategies.data` parameter on the outer given. For more details, see :obj:`~hypothesis.HealthCheck.nested_given`. (:issue:`4167`)
+Nesting :func:`@given <hypothesis.given>` inside of :func:`@given <hypothesis.given>` is now a |HealthCheck| failure. Nesting :func:`@given <hypothesis.given>` results in quadratic generation and shrinking behavior, and can usually be more cleanly expressed by replacing the inner function with a :func:`~hypothesis.strategies.data` parameter on the outer given. For more details, see :obj:`~hypothesis.HealthCheck.nested_given`. (:issue:`4167`)
 
 .. _v6.129.5:
 
@@ -10761,7 +10777,7 @@ This release makes setting attributes of the :class:`hypothesis.settings`
 class an explicit error.  This has never had any effect, but could mislead
 users who confused it with the current settings *instance*
 ``hypothesis.settings.default`` (which is also immutable).  You can change
-the global settings with :ref:`settings profiles <settings_profiles>`.
+the global settings with |settings.register_profile|.
 
 .. _v3.71.11:
 
@@ -12879,7 +12895,7 @@ minor warts ranging from indirect imports to typos in comments.
 3.38.0 - 2017-11-18
 -------------------
 
-This release overhauls :ref:`the health check system <healthchecks>`
+This release overhauls the |HealthCheck| system
 in a variety of small ways.
 It adds no new features, but is nevertheless a minor release because it changes
 which tests are likely to fail health checks.
