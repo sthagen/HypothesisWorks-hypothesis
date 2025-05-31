@@ -68,6 +68,7 @@ from hypothesis.errors import (
     Unsatisfiable,
     UnsatisfiedAssumption,
 )
+from hypothesis.internal import observability
 from hypothesis.internal.compat import (
     PYPY,
     BaseExceptionGroup,
@@ -99,7 +100,6 @@ from hypothesis.internal.escalation import (
 )
 from hypothesis.internal.healthcheck import fail_health_check
 from hypothesis.internal.observability import (
-    OBSERVABILITY_COLLECT_COVERAGE,
     TESTCASE_CALLBACKS,
     InfoObservation,
     InfoObservationType,
@@ -936,7 +936,9 @@ class StateForActualGivenExecution:
         ) or get_pretty_function_description(self.wrapped_test)
 
     def _should_trace(self):
-        _trace_obs = TESTCASE_CALLBACKS and OBSERVABILITY_COLLECT_COVERAGE
+        # NOTE: we explicitly support monkeypatching this. Keep the namespace
+        # access intact.
+        _trace_obs = TESTCASE_CALLBACKS and observability.OBSERVABILITY_COLLECT_COVERAGE
         _trace_failure = (
             self.failed_normally
             and not self.failed_due_to_deadline
@@ -1102,18 +1104,19 @@ class StateForActualGivenExecution:
 
         # self.test_runner can include the execute_example method, or setup/teardown
         # _example, so it's important to get the PRNG and build context in place first.
-        with (
-            local_settings(self.settings),
-            deterministic_PRNG(),
-            BuildContext(data, is_final=is_final) as context,
-        ):
-            # providers may throw in per_case_context_fn, and we'd like
-            # `result` to still be set in these cases.
-            result = None
-            with data.provider.per_test_case_context_manager():
-                # Run the test function once, via the executor hook.
-                # In most cases this will delegate straight to `run(data)`.
-                result = self.test_runner(data, run)
+        #
+        # NOTE: For compatibility with Python 3.9's LL(1) parser, this is written as
+        # three nested with-statements, instead of one compound statement.
+        with local_settings(self.settings):
+            with deterministic_PRNG():
+                with BuildContext(data, is_final=is_final) as context:
+                    # providers may throw in per_case_context_fn, and we'd like
+                    # `result` to still be set in these cases.
+                    result = None
+                    with data.provider.per_test_case_context_manager():
+                        # Run the test function once, via the executor hook.
+                        # In most cases this will delegate straight to `run(data)`.
+                        result = self.test_runner(data, run)
 
         # If a failure was expected, it should have been raised already, so
         # instead raise an appropriate diagnostic error.
