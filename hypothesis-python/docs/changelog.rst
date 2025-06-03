@@ -18,6 +18,22 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.133.2:
+
+--------------------
+6.133.2 - 2025-06-03
+--------------------
+
+Internal changes to support `hypofuzz <https://hypofuzz.com>`__.
+
+.. _v6.133.1:
+
+--------------------
+6.133.1 - 2025-06-03
+--------------------
+
+The ``to_json`` hook used internally when writing :ref:`observability <observability>` reports is now supported on nested dataclasses (in addition to outermost dataclasses).
+
 .. _v6.133.0:
 
 --------------------
