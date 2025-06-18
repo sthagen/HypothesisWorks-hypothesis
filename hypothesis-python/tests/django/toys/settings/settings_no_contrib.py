@@ -8,5 +8,12 @@
 # v. 2.0. If a copy of the MPL was not distributed with this file, You can
 # obtain one at https://mozilla.org/MPL/2.0/.
 
-__version_info__ = (6, 135, 11)
-__version__ = ".".join(map(str, __version_info__))
+from .settings import *  # noqa: F403
+
+# We test django in two contexts: with some default django.contrib apps installed
+# (which is settings.py), and with no django.contrib apps installed (which is this
+# file). We set DJANGO_SETTINGS_MODULE in tox to select which settings file we
+# use during testing.
+
+INSTALLED_APPS = ["tests.django.toystore"]
+ROOT_URLCONF = "tests.django.toys.settings.no_urls"
