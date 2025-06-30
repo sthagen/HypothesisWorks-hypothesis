@@ -18,6 +18,30 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.135.19:
+
+---------------------
+6.135.19 - 2025-06-30
+---------------------
+
+Improve threading compatibility of an internal helper for managing deterministic rng seeding.
+
+.. _v6.135.18:
+
+---------------------
+6.135.18 - 2025-06-30
+---------------------
+
+Remove an internal assertion which could trigger if (1) a lambda was present in the source code of a test, (2) and the source code file was edited on disk between the start of the python process and when Hypothesis runs the property.
+
+.. _v6.135.17:
+
+---------------------
+6.135.17 - 2025-06-30
+---------------------
+
+Refactor some internals related to the shrinker for better compatibility with free-threading (:issue:`4451`).
+
 .. _v6.135.16:
 
 ---------------------
