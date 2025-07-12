@@ -348,12 +348,13 @@ class RuleBasedStateMachine(metaclass=StateMachineMeta):
         except KeyError:
             pass
 
-        cls._initializers_per_class[cls] = []
+        initializers = []
         for _, v in inspect.getmembers(cls):
             r = getattr(v, INITIALIZE_RULE_MARKER, None)
             if r is not None:
-                cls._initializers_per_class[cls].append(r)
-        return cls._initializers_per_class[cls]
+                initializers.append(r)
+        cls._initializers_per_class[cls] = initializers
+        return initializers
 
     @classmethod
     def rules(cls) -> list["Rule"]:
@@ -377,13 +378,13 @@ class RuleBasedStateMachine(metaclass=StateMachineMeta):
         except KeyError:
             pass
 
-        target = []
+        invariants = []
         for _, v in inspect.getmembers(cls):
-            i = getattr(v, INVARIANT_MARKER, None)
-            if i is not None:
-                target.append(i)
-        cls._invariants_per_class[cls] = target
-        return cls._invariants_per_class[cls]
+            invariant = getattr(v, INVARIANT_MARKER, None)
+            if invariant is not None:
+                invariants.append(invariant)
+        cls._invariants_per_class[cls] = invariants
+        return invariants
 
     def _repr_step(self, rule: "Rule", data: Any, result: Any) -> str:
         output_assignment = ""
@@ -491,6 +492,8 @@ class Rule:
     arguments: Any
     preconditions: Any
     bundles: tuple["Bundle", ...] = field(init=False)
+    _cached_hash: Optional[int] = field(init=False, default=None)
+    _cached_repr: Optional[str] = field(init=False, default=None)
 
     def __post_init__(self):
         self.arguments_strategies = {}
@@ -505,13 +508,30 @@ class Rule:
         self.bundles = tuple(bundles)
 
     def __repr__(self) -> str:
-        bits = [
-            f"{field.name}="
-            f"{get_pretty_function_description(getattr(self, field.name))}"
-            for field in dataclasses.fields(self)
-            if getattr(self, field.name)
-        ]
-        return f"{self.__class__.__name__}({', '.join(bits)})"
+        if self._cached_repr is None:
+            bits = [
+                f"{field.name}="
+                f"{get_pretty_function_description(getattr(self, field.name))}"
+                for field in dataclasses.fields(self)
+                if getattr(self, field.name)
+            ]
+            self._cached_repr = f"{self.__class__.__name__}({', '.join(bits)})"
+        return self._cached_repr
+
+    def __hash__(self):
+        # sampled_from uses hash in calc_label, and we want this to be fast when
+        # sampling stateful rules, so we cache here.
+        if self._cached_hash is None:
+            self._cached_hash = hash(
+                (
+                    self.targets,
+                    self.function,
+                    tuple(self.arguments.items()),
+                    self.preconditions,
+                    self.bundles,
+                )
+            )
+        return self._cached_hash
 
 
 self_strategy = st.runner()
@@ -596,6 +616,14 @@ class Bundle(SearchStrategy[Ex]):
                 draw_references=False,
             ).flatmap(expand)
         return super().flatmap(expand)
+
+    def __hash__(self):
+        # Making this hashable means we hit the fast path of "everything is
+        # hashable" in st.sampled_from label calculation when sampling which rule
+        # to invoke next.
+
+        # Mix in "Bundle" for collision resistance
+        return hash(("Bundle", self.name))
 
 
 class BundleConsumer(Bundle[Ex]):
@@ -1037,6 +1065,7 @@ class RuleStrategy(SearchStrategy):
                 rule.function.__name__,
             )
         )
+        self.rules_strategy = st.sampled_from(self.rules)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(machine={self.machine.__class__.__name__}({{...}}))"
@@ -1061,7 +1090,7 @@ class RuleStrategy(SearchStrategy):
             # be artificially large.
             return self.is_valid(r) and feature_flags.is_enabled(r.function.__name__)
 
-        rule = data.draw(st.sampled_from(self.rules).filter(rule_is_enabled))
+        rule = data.draw(self.rules_strategy.filter(rule_is_enabled))
 
         arguments = {}
         for k, strat in rule.arguments_strategies.items():
