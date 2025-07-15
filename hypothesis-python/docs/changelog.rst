@@ -18,6 +18,22 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.135.31:
+
+---------------------
+6.135.31 - 2025-07-15
+---------------------
+
+Fix a remaining thread-safety issue with the deprecation warning for use of the global random instance (see :ref:`v6.135.24 <v6.135.24>`).
+
+.. _v6.135.30:
+
+---------------------
+6.135.30 - 2025-07-14
+---------------------
+
+Fix a remaining thread-safety issue with the recursion limit warning Hypothesis issues when an outside caller sets ``sys.setrecursionlimit`` (see :ref:`v6.135.23 <v6.135.23>`).
+
 .. _v6.135.29:
 
 ---------------------
