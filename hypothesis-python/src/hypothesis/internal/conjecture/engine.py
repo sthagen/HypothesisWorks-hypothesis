@@ -11,6 +11,7 @@
 import importlib
 import inspect
 import math
+import threading
 import time
 from collections import defaultdict
 from collections.abc import Generator, Sequence
@@ -19,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
 from random import Random, getrandbits
-from typing import Callable, Final, List, Literal, NoReturn, Optional, Union, cast
+from typing import Callable, Final, Literal, NoReturn, Optional, Union, cast
 
 from hypothesis import HealthCheck, Phase, Verbosity, settings as Settings
 from hypothesis._settings import local_settings, note_deprecation
@@ -108,7 +109,7 @@ class HealthCheckState:
     valid_examples: int = field(default=0)
     invalid_examples: int = field(default=0)
     overrun_examples: int = field(default=0)
-    draw_times: "defaultdict[str, List[float]]" = field(
+    draw_times: defaultdict[str, list[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
 
@@ -278,6 +279,7 @@ class ConjectureRunner:
         random: Optional[Random] = None,
         database_key: Optional[bytes] = None,
         ignore_limits: bool = False,
+        thread_overlap: Optional[dict[int, bool]] = None,
     ) -> None:
         self._test_function: Callable[[ConjectureData], None] = test_function
         self.settings: Settings = settings or Settings()
@@ -291,6 +293,7 @@ class ConjectureRunner:
         self.random: Random = random or Random(getrandbits(128))
         self.database_key: Optional[bytes] = database_key
         self.ignore_limits: bool = ignore_limits
+        self.thread_overlap = {} if thread_overlap is None else thread_overlap
 
         # Global dict of per-phase statistics, and a list of per-call stats
         # which transfer to the global dict at the end of each phase.
@@ -779,7 +782,12 @@ class ConjectureRunner:
         # Allow at least the greater of one second or 5x the deadline.  If deadline
         # is None, allow 30s - the user can disable the healthcheck too if desired.
         draw_time_limit = 5 * (self.settings.deadline or timedelta(seconds=6))
-        if draw_time > max(1.0, draw_time_limit.total_seconds()):
+        if (
+            draw_time > max(1.0, draw_time_limit.total_seconds())
+            # we disable HealthCheck.too_slow under concurrent threads, since
+            # cpython may switch away from a thread for arbitrarily long.
+            and not self.thread_overlap.get(threading.get_ident(), False)
+        ):
             fail_health_check(
                 self.settings,
                 "Data generation is extremely slow: Only produced "
