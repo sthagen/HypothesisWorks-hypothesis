@@ -18,6 +18,22 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.148.11:
+
+---------------------
+6.148.11 - 2026-01-03
+---------------------
+
+Hypothesis now prints a |Verbosity.verbose| log when we switch away from an :ref:`alternative backend <alternative-backends>`.
+
+.. _v6.148.10:
+
+---------------------
+6.148.10 - 2026-01-03
+---------------------
+
+Fixes :ref:`Ghostwriter <ghostwriter>` output for :pypi:`numpy` >= 2.4.0. Also adds support |st.from_type| for :pypi:`numpy` 2.5.0 nightly (which has not yet been released).
+
 .. _v6.148.9:
 
 --------------------
