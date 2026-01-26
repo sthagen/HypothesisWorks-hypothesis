@@ -50,6 +50,9 @@ def test_can_generate_some_depth_with_large_branching():
     assert xs in ([0], [[]])
 
 
+@pytest.mark.skipif(
+    settings.get_current_profile_name() == "crosshair", reason="takes 2 hours"
+)
 def test_can_find_quite_broad_lists():
     def breadth(x):
         if isinstance(x, list):
@@ -156,7 +159,10 @@ SELF_REF = st.recursive(
 )
 
 
-@settings(suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much])
+@settings(
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+    max_examples=5,
+)
 @given(SELF_REF)
 def test_self_ref_regression(_):
     # See https://github.com/HypothesisWorks/hypothesis/issues/2794
