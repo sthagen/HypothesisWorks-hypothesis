@@ -18,6 +18,34 @@ Hypothesis 6.x
 
     .. include:: ../RELEASE.rst
 
+.. _v6.152.1:
+
+--------------------
+6.152.1 - 2026-04-14
+--------------------
+
+Improve some internal type hints.
+
+.. _v6.152.0:
+
+--------------------
+6.152.0 - 2026-04-14
+--------------------
+
+Hypothesis generally recommends that the ``.hypothesis`` directory not be checked into version control. As a result, Hypothesis now automatically creates a ``.gitignore`` with ``*`` in the ``.hypothesis`` directory, which excludes it from being tracked by git.
+
+If you do want to check ``.hypothesis`` into git, you can remove the ``.gitignore`` file. Hypothesis will not re-create it unless the entire ``.hypothesis`` directory is removed.
+
+.. _v6.151.14:
+
+---------------------
+6.151.14 - 2026-04-13
+---------------------
+
+This patch fixes our |st.from_regex| type annotations so that ``from_regex(..., alphabet=None)`` is accepted.
+
+This patch also adds unicode line breaks and thai combining vowels to our list of constant strings to upweight at runtime.
+
 .. _v6.151.13:
 
 ---------------------
